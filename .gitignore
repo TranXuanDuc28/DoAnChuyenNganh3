@@ -1,0 +1,12 @@
+# Ignore video directory as requested
+Final/videos/
+
+# Common ignores
+__pycache__/
+*.pyc
+node_modules/
+.expo/
+dist/
+build/
+.DS_Store
+.env

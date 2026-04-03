@@ -6,6 +6,43 @@ import json
 import sys
 import os
 import argparse
+import threading
+import time
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    print("Vui lòng cài đặt thư viện Google AI bằng lệnh: pip install google-generativeai")
+    sys.exit(1)
+
+# --- Cấu hình AI Dịch thuật ---
+# VUI LÒNG ĐIỀN API KEY CỦA BẠN VÀO ĐÂY (Lấy miền phí tại aistudio.google.com)
+GEMINI_API_KEY = "AIzaSyCjBgv4qe2du1qrdNAlWbFpaZFX530SN6o"
+genai.configure(api_key=GEMINI_API_KEY)
+generative_model = genai.GenerativeModel('gemini-2.5-flash')
+
+# Biến toàn cục dùng cho luồng Dịch thuật
+translated_sentence = ""
+is_translating = False
+
+def translate_gloss_to_text(gloss_list):
+    global translated_sentence, is_translating
+    if not gloss_list:
+        is_translating = False
+        return
+        
+    is_translating = True
+    gloss_text = ", ".join(gloss_list)
+    prompt = f"Tôi có một chuỗi các từ khóa ngôn ngữ ký hiệu (Gloss): [{gloss_text}]. Hãy chuyển chúng thành một câu Tiếng Anh giao tiếp hoàn chỉnh, mượt mà và đúng ngữ pháp. Chỉ trả về duy nhất nội dung câu Tiếng Anh, tuyệt đối không giải thích thêm bất cứ chữ nào."
+    
+    try:
+        response = generative_model.generate_content(prompt)
+        # Remove any special characters or newlines
+        translated_sentence = response.text.replace('\\n', ' ').strip()
+    except Exception as e:
+        translated_sentence = f"(Loi API: {str(e)})"
+    finally:
+        is_translating = False
 
 # --- Cấu hình Đường dẫn tương đối ---
 FINAL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -76,6 +113,10 @@ def main():
     prediction_history = []
     consecutive_predictions = []
     
+    # Biến dùng cho hệ thống ghép câu
+    sentence_buffer = []
+    last_added_word = ""
+    
     # 5. Webcam/Video Loop
     video_source = args.video if args.video is not None else 0
     cap = cv2.VideoCapture(video_source)
@@ -127,6 +168,7 @@ def main():
                 movement = compute_hand_movement(window)
                 if movement < 0.005:  # Bạn có thể tự chỉnh xuống 0.003 nếu tay múa quá chậm bị lờ đi
                     current_prediction = "Đứng yên (Idle)"
+                    last_added_word = ""  # Tay buông xuống -> Mở khóa từ, cho phép múa lại từ đó
                     confidence = 0.0
                     prediction_history.clear()
                     consecutive_predictions.clear()
@@ -162,25 +204,55 @@ def main():
                         # Chỉ hiện tên lệnh khi 3 khung hình liên tục đoán ra 1 chữ (Vượt qua mức nháy hình)
                         if len(consecutive_predictions) == 3 and len(set(consecutive_predictions)) == 1:
                             current_prediction = consecutive_predictions[0]
+                            
+                            # LOGIC GHÉP CÂU: Thêm vào chuỗi nếu nó là từ mới
+                            if current_prediction != "Unknown" and current_prediction != last_added_word:
+                                sentence_buffer.append(current_prediction)
+                                last_added_word = current_prediction
+                                
                         elif current_prediction == "Đứng yên (Idle)":
-                            current_prediction = "Đang xem..."
+                            current_prediction = "Đang chờ..."
 
 
             # Hiển thị độ bám sát giao diện người dùng (HUD)
-            cv2.rectangle(image, (0, 0), (300, 80), (22, 22, 137), -1) # Màu đỏ đô
-            cv2.putText(image, 'PREDICTION', (15, 20), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-            cv2.putText(image, f'{current_prediction}', (15, 60), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            h, w, c = image.shape
             
-            cv2.putText(image, f'CONF: {confidence:.2f}', (170, 20), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+            # --- KHUNG THEO DÕI TỪNG TỪ ---
+            cv2.rectangle(image, (0, 0), (300, 80), (22, 22, 137), -1) # Màu đỏ đô
+            cv2.putText(image, 'PREDICTION', (15, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.putText(image, f'{current_prediction}', (15, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(image, f'CONF: {confidence:.2f}', (170, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+            
+            # HƯỚNG DẪN DÙNG PHÍM TẮT
+            cv2.putText(image, '[SPACE]: Dich Cau | [C]: Xoa Cau', (320, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1, cv2.LINE_AA)
+
+            # --- KHUNG THEO DÕI CÂU VĂN (Bên dưới màn hình) ---
+            cv2.rectangle(image, (0, h - 80), (w, h), (40, 40, 40), -1) 
+            
+            # 1. In chuỗi mảng thô (Gloss)
+            gloss_str = " + ".join(sentence_buffer)
+            cv2.putText(image, f'Chuoi: {gloss_str}', (10, h - 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 1, cv2.LINE_AA)
+            
+            # 2. In văn bản hoàn chỉnh của AI
+            global translated_sentence, is_translating
+            status_text = "AI Dang Dich..." if is_translating else translated_sentence
+            cv2.putText(image, f'Dich: {status_text}', (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (144, 238, 144), 2, cv2.LINE_AA)
 
             cv2.imshow('TGCN Model - FINAL (25 Classes)', image)
 
-            # Bấm 'q' tắt cửa sổ
-            if cv2.waitKey(wait_time) & 0xFF == ord('q'):
+            # --- KIỂM SOÁT BÀN PHÍM ---
+            key = cv2.waitKey(wait_time) & 0xFF
+            if key == ord('q'):
                 break
+            elif key == ord('c'):
+                # Nhấn C để xóa lịch sử câu làm lại
+                sentence_buffer.clear()
+                translated_sentence = ""
+                last_added_word = ""
+            elif key == 32: # Code 32 là phím Dấu Cách (Spacebar)
+                # Kích hoạt luồng AI dịch thuật để không làm đơ Camera
+                if len(sentence_buffer) > 0 and not is_translating:
+                    threading.Thread(target=translate_gloss_to_text, args=(sentence_buffer.copy(),)).start()
 
     cap.release()
     cv2.destroyAllWindows()
