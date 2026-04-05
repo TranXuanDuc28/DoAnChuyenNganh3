@@ -40,7 +40,12 @@ class TGCN_Final_Dataset(Dataset):
         self.labels = []
         self.is_train = is_train
         
-        df = pd.read_csv(os.path.join(FINAL_DIR, csv_file))
+        path = os.path.join(FINAL_DIR, csv_file)
+        if not os.path.exists(path):
+            print(f"Cảnh báo: Không tìm thấy {csv_file}")
+            return
+            
+        df = pd.read_csv(path)
         for _, row in df.iterrows():
             video_id = row['VideoID']
             gloss = row['Gloss']
@@ -93,7 +98,7 @@ class TGCN_Final_Dataset(Dataset):
                 seq_55 = seq_55[dup_indices]
                 T = seq_55.shape[0]
                 
-            # Random Jittering & Scale (Như đã viết ở file trước)
+            # Random Jittering & Scale
             if np.random.rand() > 0.5:
                 noise = np.random.normal(0, 0.01, seq_55.shape)
                 seq_55 = seq_55 + noise
@@ -101,60 +106,71 @@ class TGCN_Final_Dataset(Dataset):
                 scale = np.random.uniform(0.8, 1.2)
                 seq_55 = seq_55 * scale
 
-        # Lấy chốt NUM_SAMPLES (mặc định 30) frames nội suy tuyến tính
         indices = np.linspace(0, T - 1, NUM_SAMPLES).astype(int)
         sampled_seq = seq_55[indices]
-        
-        # Flatten time cho input TGCN: (55, T*2)
         seq_flat = sampled_seq.transpose(1, 0, 2).reshape(55, -1)
             
         return torch.FloatTensor(seq_flat), torch.tensor(self.labels[idx])
 
 def train():
     if not os.path.exists(LABEL_MAP_FILE):
-        print(f"Không tìm thấy file label map: {LABEL_MAP_FILE}")
-        print("Vui lòng chạy script extract_final_features.py TRƯỚC!")
+        print(f"Lỗi: Không tìm thấy file {LABEL_MAP_FILE}")
+        print("Vui lòng chạy extract_final_features.py trước.")
         return
 
     with open(LABEL_MAP_FILE, 'r') as f:
         label_map = json.load(f)
+    
+    num_classes = len(label_map)
+    id_to_word = {v: k for k, v in label_map.items()}
 
-    # 1. Setup Dataloader
-    print("--- Nạp Dữ Liệu Huấn Luyện & Đánh Giá ---")
+    # 1. Setup Data
+    print("\n--- Báo cáo Dữ liệu ---")
     train_dataset = TGCN_Final_Dataset('train.csv', label_map, is_train=True)
     val_dataset = TGCN_Final_Dataset('valid.csv', label_map, is_train=False)
     
+    # Thống kê phân phối lớp
+    class_counts = {}
+    for label_idx in train_dataset.labels + val_dataset.labels:
+        word = id_to_word[label_idx]
+        class_counts[word] = class_counts.get(word, 0) + 1
+    
+    print(f"{'Gloss':<15} | {'Samples':<8}")
+    print("-" * 26)
+    for word in sorted(class_counts.keys()):
+        print(f"{word:<15} | {class_counts[word]:<8}")
+    
+    total_samples = len(train_dataset) + len(val_dataset)
+    print("-" * 26)
+    print(f"Tổng số lớp (Classes): {num_classes}")
+    print(f"Tổng số mẫu (Samples): {total_samples}")
+    print(f"Training: {len(train_dataset)} | Val: {len(val_dataset)}")
+    print("------------------------\n")
+
+    if total_samples == 0:
+        print("Lỗi: Không nạp được mẫu nào. Kiểm tra thư mục keypoints/ hoặc file CSV.")
+        return
+        
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
     
-    print(f"🚀 Tổng số video Training: {len(train_dataset)}")
-    print(f"🚀 Tổng số video Validation: {len(val_dataset)}")
-    if len(train_dataset) == 0:
-        print("Chưa có bất kỳ file .npy nào được tìm thấy. Bạn đã chạy extract chưa?")
-        return
-
     # 2. Setup Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = GCN_muti_att(input_feature=NUM_SAMPLES*2, hidden_feature=HIDDEN_SIZE, 
-                         num_class=NUM_CLASSES, p_dropout=0.3, num_stage=NUM_STAGES)
+                         num_class=num_classes, p_dropout=0.3, num_stage=NUM_STAGES)
     model.to(device)
 
-    # 3. Setup Hype-params
+    # 3. Training
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
     
-    # 4. Training Loop
     best_val_acc = 0
     epochs = 100
-    print(f"\n--- Bắt đầu huấn luyện với {device.type.upper()} ---")
+    print(f"Bắt đầu huấn luyện {num_classes} lớp trên {device.type.upper()}...")
     
     for epoch in range(epochs):
-        # [TRAIN PHASE]
         model.train()
-        train_loss = 0
-        correct_train = 0
-        
-        # Thêm hiển thị thanh trạng thái TQDM
+        train_loss, correct_train = 0, 0
         train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1:03d}/{epochs} [TRAIN]")
         
         for x, y in train_pbar:
@@ -168,16 +184,12 @@ def train():
             train_loss += loss.item()
             _, predicted = torch.max(output.data, 1)
             correct_train += (predicted == y).sum().item()
-            
-            # Update info on progress bar
             train_pbar.set_postfix({'loss': f"{loss.item():.4f}"})
             
         train_acc = correct_train / len(train_dataset)
         
-        # [VAL PHASE]
         model.eval()
-        val_loss = 0
-        correct_val = 0
+        val_loss, correct_val = 0, 0
         with torch.no_grad():
             for x, y in val_loader:
                 x, y = x.to(device), y.to(device)
@@ -191,15 +203,12 @@ def train():
         
         if val_acc > best_val_acc:
             best_val_acc = val_acc
+            # Lưu model với số classes động trong tên nếu cần, hoặc ghi đè file FINAL
             torch.save(model.state_dict(), 'best_tgcn_model_FINAL.pth')
             
-        # Hiển thị log liên tục mỗi Epoch thay vì 5 epoch 1 lần
-        print(f"-> KQ Epoch [{epoch+1:03d}/{epochs}]: "
-              f"Train Loss: {train_loss/len(train_loader):.4f} | Train Acc: {train_acc:.4f} || "
-              f"Val Loss: {val_loss/len(val_loader):.4f} | Val Acc: {val_acc:.4f}\n")
+        print(f"-> KQ Epoch [{epoch+1:03d}/{epochs}]: Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} (Best: {best_val_acc:.4f})")
 
-    print(f"\n✅ Hoàn tất! Best Validation Accuracy: {best_val_acc:.4f}")
-    print("Mô hình được lưu ở: best_tgcn_model_FINAL.pth")
+    print(f"\n✅ Hoàn tất! Best Accuracy: {best_val_acc:.4f}")
 
 if __name__ == "__main__":
     train()

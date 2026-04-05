@@ -3,12 +3,12 @@ import { StyleSheet, Text, View, ActivityIndicator, Dimensions, TouchableOpacity
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { registerRootComponent } from 'expo';
-import * as Speech from 'expo-speech'; 
+import * as Speech from 'expo-speech';
 
 const { width, height } = Dimensions.get('window');
 
 // --- ĐỊA CHỈ SERVER (Thay bằng IPv4 máy tính của bạn) ---
-const SERVER_IP = "192.168.1.193";
+const SERVER_IP = "192.168.1.222";
 const WS_URL = `ws://${SERVER_IP}:8000/ws/json`;
 
 export default function App() {

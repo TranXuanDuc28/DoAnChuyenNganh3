@@ -4,12 +4,14 @@ import json
 import pandas as pd
 import numpy as np
 import mediapipe as mp
+import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
 try:
     from tqdm import tqdm
 except ImportError:
     print("Vui lòng chạy: pip install tqdm")
     sys.exit()
-import sys
 
 # Cấu hình đường dẫn
 FINAL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,13 +30,52 @@ VIDEO_DIR = os.path.join(FINAL_DIR, 'videos')
 OUTPUT_DIR = os.path.join(FINAL_DIR, 'keypoints')
 LABEL_MAP_FILE = os.path.join(FINAL_DIR, 'final_label_map.json')
 
-# Tạo thư mục output nếu chưa có
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-def main():
-    print("=== Bước 1: Tạo tệp Label Map (25 classes) ===")
+def process_single_video(video_info):
+    """
+    Hàm xử lý cho một video đơn lẻ (Chạy trong Worker Process)
+    """
+    video_filename, output_path = video_info
     
-    # Gom tất cả label từ 3 tệp csv
+    # Khởi tạo Holistic bên trong mỗi process để tránh xung đột luồng
+    mp_holistic = mp.solutions.holistic
+    
+    if not os.path.exists(video_filename):
+        return False
+        
+    try:
+        with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+            cap = cv2.VideoCapture(video_filename)
+            frames_keypoints = []
+            
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                    
+                image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                image.flags.writeable = False
+                results = holistic.process(image)
+                
+                kps = extract_keypoints(results)
+                frames_keypoints.append(kps)
+                
+            cap.release()
+            
+            if len(frames_keypoints) > 0:
+                seq_75 = np.array(frames_keypoints)
+                # Làm mượt nội suy
+                seq_75 = interpolate_missing_keypoints(seq_75)
+                np.save(output_path, seq_75)
+                return True
+            return False
+    except Exception as e:
+        return False
+
+def main():
+    print("=== Bước 1: Tạo tệp Label Map ===")
+    
     all_glosses = set()
     df_list = []
     
@@ -49,7 +90,6 @@ def main():
         print("Lỗi: Không tìm thấy file CSV nào!")
         return
         
-    # Tạo label dictionary (Sort theo bảng chữ cái để cố định Index)
     sorted_glosses = sorted(list(all_glosses))
     label_map = {gloss: idx for idx, gloss in enumerate(sorted_glosses)}
     
@@ -57,67 +97,42 @@ def main():
         json.dump(label_map, f, indent=4)
     print(f"Đã tạo {LABEL_MAP_FILE} với {len(label_map)} từ vựng.")
     
-    print("\n=== Bước 2: Trích xuất MediaPipe Keypoints ===")
+    print("\n=== Bước 2: Trích xuất MediaPipe Keypoints (ĐA NHIỆM) ===")
     
-    # Nối tất cả dataframe để chạy vòng lặp
     combined_df = pd.concat(df_list, ignore_index=True)
-    # Loại bỏ file trùng lặp do VideoID đúp
     combined_df = combined_df.drop_duplicates(subset=['VideoID'])
-    total_videos = len(combined_df)
     
-    mp_holistic = mp.solutions.holistic
-    skipped_videos = 0
-    extracted_videos = 0
+    # Lọc danh sách các video cần xử lý (bỏ qua những cái đã có .npy)
+    tasks = []
+    for _, row in combined_df.iterrows():
+        video_filename = row['VideoID']
+        video_path = os.path.join(VIDEO_DIR, video_filename)
+        output_path = os.path.join(OUTPUT_DIR, f"{video_filename}.npy")
+        
+        if not os.path.exists(output_path):
+            tasks.append((video_path, output_path))
     
-    with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-        for index, row in tqdm(combined_df.iterrows(), total=total_videos, desc="Extracting MediaPipe"):
-            video_filename = row['VideoID']
-            video_path = os.path.join(VIDEO_DIR, video_filename)
-            output_path = os.path.join(OUTPUT_DIR, f"{video_filename}.npy")
-            
-            # Nếu đã tồn tại thì bỏ qua (Phòng khi script dừng giữa chừng)
-            if os.path.exists(output_path):
-                continue
+    total_tasks = len(tasks)
+    print(f"Tổng số video cần trích xuất mới: {total_tasks}")
+    
+    if total_tasks == 0:
+        print("Mọi video đã được trích xuất xong!")
+        return
+
+    # Sử dụng ProcessPoolExecutor để chạy đa nhân CPU
+    # max_workers=None sẽ tự động lấy số nhân CPU của máy
+    extracted_count = 0
+    with ProcessPoolExecutor() as executor:
+        futures = {executor.submit(process_single_video, task): task for task in tasks}
+        
+        # tqdm hiển thị tiến trình
+        for future in tqdm(as_completed(futures), total=total_tasks, desc="Đang trích xuất đa luồng"):
+            if future.result():
+                extracted_count += 1
                 
-            if not os.path.exists(video_path):
-                skipped_videos += 1
-                continue
-                
-            cap = cv2.VideoCapture(video_path)
-            frames_keypoints = []
-            
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                    
-                image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                image.flags.writeable = False
-                results = holistic.process(image)
-                
-                # Trích xuất 75 điểm (pose, left hand, right hand)
-                kps = extract_keypoints(results)
-                frames_keypoints.append(kps)
-                
-            cap.release()
-            
-            if len(frames_keypoints) > 0:
-                seq_75 = np.array(frames_keypoints) # Shape (T, 75, 3)
-                
-                # Làm mượt (Cực kỳ quan trọng, tái sử dụng script đã viết)
-                try:
-                    seq_75 = interpolate_missing_keypoints(seq_75)
-                    np.save(output_path, seq_75)
-                    extracted_videos += 1
-                except Exception as e:
-                    # Trong t/hợp tồi tệ hàm interpolate gây lỗi thì save raw
-                    np.save(output_path, seq_75)
-                    extracted_videos += 1
-            else:
-                skipped_videos += 1
-                
-    print(f"\nHoàn tất! Bỏ qua/Lỗi file: {skipped_videos}")
-    print(f"Đã trích xuất xong: {extracted_videos} / {total_videos}")
+    print(f"\nHoàn tất! Đã trích xuất thêm: {extracted_count} / {total_tasks} video mới.")
+    print(f"Dữ liệu hiện có tổng cộng: {len(os.listdir(OUTPUT_DIR))} tập tin Keypoints.")
 
 if __name__ == "__main__":
     main()
+
