@@ -6,4 +6,5 @@ tqdm
 torch
 scikit-learn
 google-generativeai
+python-dotenv
 pyttsx3

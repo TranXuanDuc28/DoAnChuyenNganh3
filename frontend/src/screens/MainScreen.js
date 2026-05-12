@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Text, View, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
+import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/AppStyles';
 
 // --- ĐỊA CHỈ SERVER ---
@@ -10,11 +11,12 @@ const SERVER_IP = "192.168.1.17";
 const WS_URL = `ws://${SERVER_IP}:8000/ws/json`;
 
 export default function MainScreen() {
-    const [prediction, setPrediction] = useState('Đang chờ camera...');
+    const [prediction, setPrediction] = useState('Wait...');
     const [confidence, setConfidence] = useState(0);
     const [sentence, setSentence] = useState([]);
     const [translation, setTranslation] = useState('');
     const [wsConnected, setWsConnected] = useState(false);
+    const [targetLang, setTargetLang] = useState('vi'); // 'vi' hoặc 'en'
     const [isTranslating, setIsTranslating] = useState(false);
     const ws = useRef(null);
 
@@ -32,7 +34,6 @@ export default function MainScreen() {
                     if (data.translation) setTranslation(data.translation);
                     if (data.status === "translating") {
                         setIsTranslating(true);
-                        setTranslation("AI Đang Dịch...");
                     } else {
                         setIsTranslating(false);
                     }
@@ -47,20 +48,27 @@ export default function MainScreen() {
         return () => ws.current?.close();
     }, []);
 
+    // --- Hàm xử lý đọc văn bản ---
+    const speakText = (text) => {
+        if (!text || text.includes("...")) return;
+        
+        Speech.speak(text, {
+            language: targetLang === 'vi' ? 'vi-VN' : 'en-US',
+            pitch: 1.0,
+            rate: 0.9,
+        });
+    };
+
     // --- Tự động đọc câu khi dịch xong ---
     useEffect(() => {
-        if (translation && !translation.includes("...") && translation !== "Chuẩn bị dịch...") {
-            Speech.speak(translation, {
-                language: 'vi-VN', 
-                pitch: 1.0,
-                rate: 0.9,
-            });
+        if (translation && !isTranslating) {
+            speakText(translation);
         }
-    }, [translation]);
+    }, [translation, isTranslating]);
 
-    const sendCommand = (cmd) => {
+    const sendCommand = (cmd, extraData = {}) => {
         if (ws.current && wsConnected) {
-            ws.current.send(JSON.stringify({ command: cmd }));
+            ws.current.send(JSON.stringify({ command: cmd, ...extraData }));
         }
     };
 
@@ -82,8 +90,8 @@ export default function MainScreen() {
       <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
       <style>
         body { margin: 0; padding: 0; overflow: hidden; background: black; }
-        #video { width: 100vw; height: 100vh; object-fit: contain; transform: scaleX(-1); position: absolute; top:0; left:0; }
-        #canvas { width: 100vw; height: 100vh; object-fit: contain; transform: scaleX(-1); position: absolute; top:0; left:0; z-index: 10; }
+        #video { width: 100vw; height: 100vh; object-fit: cover; transform: scaleX(-1); position: absolute; top:0; left:0; }
+        #canvas { width: 100vw; height: 100vh; object-fit: cover; transform: scaleX(-1); position: absolute; top:0; left:0; z-index: 10; }
       </style>
     </head>
     <body>
@@ -104,10 +112,10 @@ export default function MainScreen() {
           canvasElement.height = videoElement.videoHeight;
           canvasCtx.save();
           canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-          drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: 'rgba(255,255,255,0.5)', lineWidth: 2});
-          drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#4CD964', lineWidth: 3});
+          drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: 'rgba(255,255,255,0.3)', lineWidth: 2});
+          drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#6C5CE7', lineWidth: 3});
           drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#FFFFFF', lineWidth: 1, radius: 2});
-          drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#FFCC00', lineWidth: 3});
+          drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#6C5CE7', lineWidth: 3});
           drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#FFFFFF', lineWidth: 1, radius: 2});
           canvasCtx.restore();
 
@@ -139,7 +147,36 @@ export default function MainScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.cameraContainer}>
+            {/* Header */}
+            <View style={styles.header}>
+                <View style={styles.profilePic}>
+                    <Ionicons name="person-circle" size={40} color="#6C5CE7" />
+                </View>
+                <Text style={styles.appTitle}>Lumina Sign</Text>
+                
+                {/* Language Toggle */}
+                <View style={styles.langToggle}>
+                    <TouchableOpacity 
+                        style={[styles.langBtn, targetLang === 'vi' && styles.langBtnActive]}
+                        onPress={() => setTargetLang('vi')}
+                    >
+                        <Text style={[styles.langText, targetLang === 'vi' && styles.langTextActive]}>VI</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[styles.langBtn, targetLang === 'en' && styles.langBtnActive]}
+                        onPress={() => setTargetLang('en')}
+                    >
+                        <Text style={[styles.langText, targetLang === 'en' && styles.langTextActive]}>EN</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.settingsBtn}>
+                    <Ionicons name="settings-outline" size={24} color="#636E72" />
+                </TouchableOpacity>
+            </View>
+
+            {/* Camera Viewfinder */}
+            <View style={styles.cameraWrapper}>
                 <WebView
                     originWhitelist={['*']}
                     source={{ html: htmlContent, baseUrl: 'https://localhost' }}
@@ -152,50 +189,92 @@ export default function MainScreen() {
                     scrollEnabled={false}
                     mediaCapturePermissionGrantType="grant"
                 />
-                <View style={styles.hudContainer}>
-                    <View style={styles.predictionBadge}>
-                        <Text style={styles.badgeTitle}>TRẠNG THÁI AI</Text>
-                        <Text style={styles.badgeText}>{prediction}</Text>
-                    </View>
-                    <View style={styles.confBadge}>
-                        <Text style={styles.confText}>{Math.round(confidence * 100)}%</Text>
-                    </View>
+                
+                {/* Focus Frame Overlay */}
+                <View style={styles.focusFrame}>
+                    <View style={styles.cornerTL} />
+                    <View style={styles.cornerBR} />
                 </View>
-            </View>
 
-            <View style={styles.controlPanel}>
-                <TouchableOpacity style={[styles.btn, styles.btnDelete]} onPress={() => sendCommand("delete_last")}>
-                    <Text style={styles.btnText}>XÓA TỪ</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.btn, styles.btnClear]} onPress={() => sendCommand("clear_all")}>
-                    <Text style={styles.btnText}>XÓA HẾT</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.btn, styles.btnTranslate, isTranslating && styles.btnDisabled]}
-                    onPress={() => sendCommand("translate")}
-                    disabled={isTranslating}
-                >
-                    <Text style={styles.btnText}>DỊCH NGAY</Text>
-                </TouchableOpacity>
-            </View>
+                {/* Floating Actions */}
+                <View style={styles.floatingActions}>
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => sendCommand("clear_all")}>
+                        <Ionicons name="refresh-outline" size={22} color="#6C5CE7" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionBtn}>
+                        <Ionicons name="camera-reverse-outline" size={22} color="#6C5CE7" />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[styles.actionBtn, styles.actionBtnPrimary]} 
+                        onPress={() => sendCommand("translate", { lang: targetLang })}
+                    >
+                        <Ionicons name="videocam" size={22} color="#FFF" />
+                    </TouchableOpacity>
+                </View>
 
-            <View style={styles.dashboard}>
-                <View style={styles.section}>
-                    <Text style={styles.label}>TỪ VỰNG (GLOSS):</Text>
-                    <Text style={styles.glossValue}>{sentence.length > 0 ? sentence.join(' · ') : '---'}</Text>
-                </View>
-                <View style={[styles.section, styles.translationSection]}>
-                    <Text style={styles.label}>KẾT QUẢ AI DỊCH:</Text>
-                    <Text style={isTranslating ? styles.translationPending : styles.translationValue}>
-                        {translation || 'Vui lòng nhấn [Dịch ngay]...'}
-                    </Text>
-                </View>
+                {/* Connection Error Overlay */}
                 {!wsConnected && (
-                    <View style={styles.errorBanner}>
-                        <ActivityIndicator size="small" color="#fff" />
-                        <Text style={styles.errorText}> Mất kết nối Server...</Text>
+                    <View style={styles.errorOverlay}>
+                        <Text style={styles.errorText}>Mất kết nối server...</Text>
                     </View>
                 )}
+
+                {/* Result Card (Floating) */}
+                <View style={styles.resultCard}>
+                    <View style={styles.liveStatus}>
+                        <View style={styles.statusDot} />
+                        <Text style={styles.statusText}>LIVE TRANSLATION</Text>
+                    </View>
+                    
+                    <View style={styles.translationRow}>
+                        <Text style={styles.translationText}>
+                            {translation || (sentence.length > 0 ? sentence.join(' ') : 'Bắt đầu ký hiệu để dịch...')}
+                        </Text>
+                        <TouchableOpacity 
+                            style={styles.ttsBtn}
+                            onPress={() => speakText(translation || (sentence.length > 0 ? sentence.join(' ') : ''))}
+                        >
+                            <Ionicons name="volume-medium" size={24} color="#6C5CE7" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Waveform Visualizer Placeholder */}
+                    <View style={styles.waveformContainer}>
+                        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                            <View 
+                                key={i} 
+                                style={[styles.waveBar, { height: Math.random() * 15 + 5, opacity: isTranslating ? 1 : 0.4 }]} 
+                            />
+                        ))}
+                    </View>
+                </View>
+            </View>
+
+            {/* Bottom Tab Navigation */}
+            <View style={styles.bottomTab}>
+                <TouchableOpacity style={[styles.tabItem, styles.tabActive]}>
+                    <Ionicons name="home" size={20} color="#FFF" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.tabItem}>
+                    <Ionicons name="eye-outline" size={20} color="#636E72" />
+                    <Text style={styles.tabText}>Trans</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.tabItem}>
+                    <Ionicons name="school-outline" size={20} color="#636E72" />
+                    <Text style={styles.tabText}>Learn</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.tabItem}>
+                    <Ionicons name="stats-chart-outline" size={20} color="#636E72" />
+                    <Text style={styles.tabText}>Stats</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.tabItem}>
+                    <Ionicons name="person-outline" size={20} color="#636E72" />
+                    <Text style={styles.tabText}>Profile</Text>
+                </TouchableOpacity>
             </View>
         </SafeAreaView>
     );

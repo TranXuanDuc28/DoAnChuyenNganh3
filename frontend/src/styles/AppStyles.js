@@ -1,50 +1,154 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
+
+const { width, height } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#000' },
-    cameraContainer: { flex: 1.5, position: 'relative', overflow: 'hidden', borderRadius: 20, margin: 10 },
-    webView: { flex: 1, backgroundColor: 'transparent' },
-    hudContainer: { position: 'absolute', top: 20, left: 15, right: 15, flexDirection: 'row', justifyContent: 'space-between' },
-    predictionBadge: { backgroundColor: 'rgba(255, 69, 0, 0.85)', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 12, minWidth: 140 },
-    badgeTitle: { color: '#fff', fontSize: 10, fontWeight: 'bold', opacity: 0.8 },
-    badgeText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-    confBadge: { backgroundColor: 'rgba(0, 0, 0, 0.6)', padding: 12, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    confText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+    container: { flex: 1, backgroundColor: '#FDF8FF' },
 
-    // --- Styles cho Nút bấm điều khiển ---
-    controlPanel: {
+    // --- Header ---
+    header: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingHorizontal: 10,
-        marginBottom: 10,
-    },
-    btn: {
-        paddingVertical: 12,
-        paddingHorizontal: 15,
-        borderRadius: 10,
-        minWidth: 100,
         alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingTop: 10,
+        paddingBottom: 15,
+        backgroundColor: 'rgba(253, 248, 255, 0.9)',
+    },
+    profilePic: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ddd' },
+    appTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#2D3436',
+        letterSpacing: -0.5,
+        flex: 1,
+    },
+    langToggle: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F2F6',
+        borderRadius: 20,
+        padding: 3,
+        marginRight: 10,
+    },
+    langBtn: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 15,
+    },
+    langBtnActive: {
+        backgroundColor: '#6C5CE7',
+    },
+    langText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#A4B0BE',
+    },
+    langTextActive: {
+        color: '#FFF',
+    },
+    settingsBtn: {
+        padding: 8,
+    },
+
+    // --- Camera Viewfinder ---
+    cameraWrapper: {
+        flex: 1,
+        marginHorizontal: 15,
+        marginBottom: 95, // Chừa khoảng trống cho Bottom Tab (85 height + 10 margin)
+        borderRadius: 30,
+        overflow: 'hidden',
+        position: 'relative',
+        backgroundColor: '#000',
+    },
+    webView: { flex: 1 },
+
+    // Khung focus trên camera
+    focusFrame: {
+        position: 'absolute',
+        top: '10%',
+        left: '10%',
+        right: '10%',
+        bottom: '10%',
+        borderWidth: 2,
+        borderColor: 'rgba(108, 92, 231, 0.5)',
+        borderRadius: 20,
+        zIndex: 5,
+    },
+    cornerTL: { position: 'absolute', top: -2, left: -2, width: 40, height: 40, borderTopWidth: 4, borderLeftWidth: 4, borderColor: '#6C5CE7', borderTopLeftRadius: 20 },
+    cornerBR: { position: 'absolute', bottom: -2, right: -2, width: 40, height: 40, borderBottomWidth: 4, borderRightWidth: 4, borderColor: '#6C5CE7', borderBottomRightRadius: 20 },
+
+    // Nút chức năng nổi bên phải
+    floatingActions: {
+        position: 'absolute',
+        right: 15,
+        top: 20,
+        gap: 15,
+        zIndex: 20,
+    },
+    actionBtn: {
+        width: 45,
+        height: 45,
+        borderRadius: 22.5,
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
         justifyContent: 'center',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
+        alignItems: 'center',
         elevation: 5,
     },
-    btnDelete: { backgroundColor: '#444' },
-    btnClear: { backgroundColor: '#B22222' },
-    btnTranslate: { backgroundColor: '#4CD964', minWidth: 140 },
-    btnDisabled: { backgroundColor: '#225522', opacity: 0.6 },
-    btnText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
+    actionBtnPrimary: { backgroundColor: '#6C5CE7' },
 
-    // --- Dashboard kết quả ---
-    dashboard: { flex: 1, backgroundColor: '#1A1A1A', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, elevation: 20 },
-    section: { marginBottom: 15 },
-    label: { color: '#666', fontSize: 10, fontWeight: 'bold', letterSpacing: 1, marginBottom: 5 },
-    glossValue: { color: '#F9D423', fontSize: 18, fontWeight: 'bold' },
-    translationSection: { flex: 1, backgroundColor: '#262626', padding: 15, borderRadius: 15 },
-    translationValue: { color: '#4CD964', fontSize: 20, fontWeight: 'bold' },
-    translationPending: { color: '#8E8E93', fontSize: 18, fontStyle: 'italic' },
-    errorBanner: { position: 'absolute', bottom: 10, left: 25, right: 25, backgroundColor: '#FF3B30', flexDirection: 'row', padding: 8, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    errorText: { color: '#fff', fontSize: 12, fontWeight: 'bold' }
+    // --- Result Card (Glassmorphism) ---
+    resultCard: {
+        position: 'absolute',
+        bottom: 20,
+        left: 15,
+        right: 15,
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        borderRadius: 25,
+        padding: 20,
+        zIndex: 30,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+    },
+    liveStatus: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+    statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#6C5CE7', marginRight: 8 },
+    statusText: { fontSize: 12, fontWeight: 'bold', color: '#6C5CE7', letterSpacing: 1 },
+
+    translationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    translationText: { fontSize: 20, fontWeight: '600', color: '#2D3436', flex: 1, lineHeight: 28 },
+    ttsBtn: { backgroundColor: '#D1CCFF', padding: 10, borderRadius: 12, marginLeft: 10 },
+
+    waveformContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 3, marginTop: 15 },
+    waveBar: { width: 3, height: 15, backgroundColor: '#6C5CE7', borderRadius: 2 },
+
+    // --- Bottom Tab Navigation ---
+    bottomTab: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        backgroundColor: '#FFF', // Đổi sang trắng cho sạch sẽ
+        height: 85,
+        borderTopLeftRadius: 35,
+        borderTopRightRadius: 35,
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        paddingBottom: 20, // Thêm padding cho các máy có thanh Home
+        elevation: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 15,
+    },
+    tabItem: { alignItems: 'center', justifyContent: 'center' },
+    tabActive: { backgroundColor: '#6C5CE7', width: 60, height: 45, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+    tabText: { fontSize: 10, color: '#636E72', marginTop: 4 },
+    tabTextActive: { color: '#FFF' },
+
+    // --- Overlay Connection Error ---
+    errorOverlay: { position: 'absolute', top: 10, alignSelf: 'center', backgroundColor: 'rgba(255, 59, 48, 0.9)', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 20, zIndex: 100 },
+    errorText: { color: '#fff', fontSize: 11, fontWeight: 'bold' }
 });
