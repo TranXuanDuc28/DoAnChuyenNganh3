@@ -1,0 +1,9 @@
+mediapipe
+opencv-python
+pandas
+numpy
+tqdm
+torch
+scikit-learn
+google-generativeai
+pyttsx3

@@ -1,12 +1,32 @@
-# Ignore video directory as requested
-Final/videos/
+# --- Dự án DoAnChuyenNganh3 ---
 
-# Common ignores
-__pycache__/
-*.pyc
+# 1. Bỏ qua dữ liệu nặng (Video và Dataset lớn)
+training/videos/
+training/keypoints/
+*.npy
+
+# 2. Bỏ qua môi trường ảo và thư viện
 node_modules/
+**/node_modules/
+venv/
+venv_mp/
+training/venv_mp/
+.env
+
+# 3. Bỏ qua các file tạm của Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 4. Bỏ qua các file tạm của Expo/React Native
 .expo/
 dist/
 build/
+.next/
+
+# 5. File hệ thống
 .DS_Store
-.env
+Thumbs.db
+.vscode/
