@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { Video } from 'expo-av';
 
-const API_BASE = "https://unpriggish-conductorial-lilah.ngrok-free.dev";
+const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev";
 
 const PracticeDetailScreen = ({ navigation, route }) => {
     const { lessonId } = route.params || { lessonId: 1 };

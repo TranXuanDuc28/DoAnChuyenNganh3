@@ -1,0 +1,378 @@
+import { StyleSheet, Dimensions, Platform } from 'react-native';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+
+export default StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FDF8FF',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: 'rgba(253, 248, 255, 0.8)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(201, 196, 216, 0.2)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#5D3FDF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 30,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+    zIndex: 10,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4317C6',
+    fontFamily: Platform.OS === 'ios' ? 'Space Grotesk' : 'sans-serif-condensed',
+  },
+  profilePic: {
+    width: 40,
+    height: 40,
+    borderRadius: 9999,
+    borderWidth: 2,
+    borderColor: 'rgba(229, 222, 255, 1)',
+  },
+  scrollContent: {
+    paddingBottom: 128,
+  },
+  mainPadding: {
+    paddingHorizontal: 24,
+    paddingTop: 31,
+    gap: 32,
+  },
+  titleSection: {
+    gap: 4,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1C1A24',
+    lineHeight: 40,
+    fontFamily: Platform.OS === 'ios' ? 'Space Grotesk' : 'sans-serif-bold',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#5E5D69',
+    lineHeight: 24,
+    fontFamily: Platform.OS === 'ios' ? 'Lexend' : 'sans-serif',
+  },
+  heroCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(196, 181, 253, 0.3)',
+    padding: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#4317C8',
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.05,
+        shadowRadius: 25,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  blurOverlay: {
+    position: 'absolute',
+    width: 256,
+    height: 256,
+    borderRadius: 128,
+    top: -95,
+    right: -75,
+    zIndex: -1,
+  },
+  streakIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#4317C8',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  streakValue: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#7B61FF',
+    fontFamily: Platform.OS === 'ios' ? 'Space Grotesk' : 'sans-serif-bold',
+  },
+  streakLabel: {
+    fontSize: 14,
+    color: '#908DA1',
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Lexend' : 'sans-serif',
+  },
+  progressSection: {
+    gap: 16,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1C1A24',
+    fontFamily: Platform.OS === 'ios' ? 'Space Grotesk' : 'sans-serif-medium',
+  },
+  progressStats: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4317C6',
+    fontFamily: Platform.OS === 'ios' ? 'Lexend' : 'sans-serif-bold',
+  },
+  daysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#F3F0FF',
+  },
+  dayItem: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  dayText: {
+    fontSize: 12,
+    color: '#908DA1',
+    fontFamily: Platform.OS === 'ios' ? 'Lexend' : 'sans-serif',
+  },
+  activeDayText: {
+    color: '#4317C6',
+    fontWeight: '700',
+  },
+  dayCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F0FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeDayCircle: {
+    backgroundColor: '#4317C6',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#4317C6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  dayCircleText: {
+    fontSize: 14,
+    color: '#5E5D69',
+    fontWeight: '600',
+  },
+  milestonesSection: {
+    gap: 20,
+  },
+  sectionHeader: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1C1A24',
+    fontFamily: Platform.OS === 'ios' ? 'Space Grotesk' : 'sans-serif-bold',
+  },
+  milestoneCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: 24,
+    padding: 20,
+    flexDirection: 'row',
+    gap: 16,
+    borderWidth: 1,
+    borderColor: '#F3F0FF',
+  },
+  milestoneCardActive: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#4317C6',
+  },
+  milestoneIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#F3F0FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  milestoneContent: {
+    flex: 1,
+    gap: 8,
+  },
+  milestoneTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  milestoneTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1C1A24',
+    fontFamily: Platform.OS === 'ios' ? 'Lexend' : 'sans-serif-bold',
+  },
+  milestoneProgress: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#4317C6',
+    fontFamily: Platform.OS === 'ios' ? 'Lexend' : 'sans-serif-bold',
+  },
+  milestoneBarTrack: {
+    height: 8,
+    backgroundColor: '#E5E0EE',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  milestoneBarFill: {
+    height: '100%',
+    backgroundColor: '#7B61FF',
+    borderRadius: 4,
+  },
+  milestoneDesc: {
+    fontSize: 13,
+    color: '#5E5D69',
+    lineHeight: 18,
+    fontFamily: Platform.OS === 'ios' ? 'Lexend' : 'sans-serif',
+  },
+  insightCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F3F0FF',
+  },
+  insightGradient: {
+    padding: 24,
+    flexDirection: 'row',
+    gap: 16,
+  },
+  insightIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#F3F0FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  insightContent: {
+    flex: 1,
+    gap: 4,
+  },
+  insightTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4317C6',
+    fontFamily: Platform.OS === 'ios' ? 'Space Grotesk' : 'sans-serif-bold',
+  },
+  insightText: {
+    fontSize: 14,
+    color: '#5E5D69',
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'Lexend' : 'sans-serif',
+  },
+  highlightText: {
+    fontWeight: '700',
+    color: '#4317C6',
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 120,
+    right: 24,
+    zIndex: 20,
+  },
+  fab: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#4317C6',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  fabGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomNav: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    backgroundColor: 'rgba(253, 248, 255, 0.9)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(201, 196, 216, 0.3)',
+    borderRadius: 32,
+  },
+  navItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  activeNavItem: {
+    backgroundColor: '#5B3CDD',
+  },
+  navLabel: {
+    fontSize: 10,
+    color: '#908DA1',
+    marginTop: 4,
+  },
+  activeNavLabel: {
+    color: '#D7CFFF',
+  },
+});

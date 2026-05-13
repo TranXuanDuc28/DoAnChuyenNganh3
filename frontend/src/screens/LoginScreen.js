@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/LoginStyles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE = "https://unpriggish-conductorial-lilah.ngrok-free.dev";
+const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev";
 
 const LoginScreen = ({ navigation }) => {
     const [email, setEmail] = useState('');

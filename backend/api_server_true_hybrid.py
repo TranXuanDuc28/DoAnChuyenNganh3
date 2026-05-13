@@ -9,8 +9,15 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import google.generativeai as genai
+
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
 from database import db
 from routes import router as api_router
+from app.api.api_v1.api import api_router as api_v1_router
+from app.core.config import settings
 
 # --- Cấu hình AI Dịch thuật ---
 GEMINI_API_KEY = "AIzaSyCjBgv4qe2du1qrdNAlWbFpaZFX530SN6o"
@@ -18,7 +25,6 @@ genai.configure(api_key=GEMINI_API_KEY)
 generative_model = genai.GenerativeModel('gemini-2.5-flash')
 
 # --- Đường dẫn ---
-BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 CORE_DIR = os.path.join(BACKEND_DIR, 'core')
 DATA_DIR = os.path.join(BACKEND_DIR, 'data')
 WEIGHTS_DIR = os.path.join(BACKEND_DIR, 'weights')
@@ -87,6 +93,7 @@ async def startup_event():
     db.init_db()
 
 app.include_router(api_router)
+app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 # Để có thể xem được ảnh thumbnail và video từ thư mục archive
 app.mount("/static", StaticFiles(directory="archive"), name="static")
@@ -199,8 +206,8 @@ async def websocket_json_endpoint(websocket: WebSocket):
                                 
                                 # Log to DB (History)
                                 db.execute_query(
-                                    "INSERT INTO recognition_history (user_id, recognized_text, confidence) VALUES (%s, %s, %s)",
-                                    (1, current_prediction, round(confidence, 2))
+                                    "INSERT INTO recognition_history (user_id, recognized_text, confidence, type, thumbnail) VALUES (%s, %s, %s, %s, %s)",
+                                    (1, current_prediction, round(confidence, 2), 'VIDEO', 'https://images.unsplash.com/photo-1516321497487-e288fb19713f')
                                 )
 
             # Luôn gửi cập nhật UI

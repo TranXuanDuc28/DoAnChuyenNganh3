@@ -107,8 +107,13 @@ async def websocket_recognition(websocket: WebSocket, db: Session = Depends(get_
                                 # Lưu vào lịch sử (History)
                                 try:
                                     db.execute(
-                                        text("INSERT INTO recognition_history (user_id, recognized_text, confidence) VALUES (:u, :t, :c)"),
-                                        {"u": 1, "t": current_prediction, "c": round(confidence, 2)}
+                                        text("INSERT INTO recognition_history (user_id, recognized_text, confidence, type, thumbnail) VALUES (:u, :t, :c, 'VIDEO', :thumb)"),
+                                        {
+                                            "u": 1, 
+                                            "t": current_prediction, 
+                                            "c": round(confidence, 2),
+                                            "thumb": "https://images.unsplash.com/photo-1516321497487-e288fb19713f"
+                                        }
                                     )
                                     db.commit()
                                 except Exception as e:

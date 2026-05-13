@@ -14,7 +14,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-ico
 import { styles } from '../styles/LessonDetailStyles';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const API_BASE = "https://unpriggish-conductorial-lilah.ngrok-free.dev";
+const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev";
 
 const LessonDetailScreen = ({ navigation, route }) => {
     const { category_id, category_name } = route.params;

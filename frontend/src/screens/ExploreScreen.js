@@ -13,7 +13,7 @@ import {
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { styles } from '../styles/ExploreStyles';
 
-const API_BASE = "https://unpriggish-conductorial-lilah.ngrok-free.dev"; 
+const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev"; 
 
 const topicConfig = {
     'Greetings': { icon: 'hand-peace', color: '#7B61FF', bg: '#F2EEFF' },

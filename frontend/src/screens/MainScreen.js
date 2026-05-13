@@ -6,7 +6,7 @@ import * as Speech from 'expo-speech';
 import { styles } from '../styles/AppStyles';
 
 // --- ĐỊA CHỈ SERVER ---
-const SERVER_IP = "192.168.22.22";
+const SERVER_IP = "192.168.1.99";
 const WS_URL = `ws://${SERVER_IP}:8000/api/v1/recognition/ws`;
 
 export default function MainScreen() {

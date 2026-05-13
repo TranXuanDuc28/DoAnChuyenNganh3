@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/RegisterStyles';
 
-const API_BASE = "https://unpriggish-conductorial-lilah.ngrok-free.dev";
+const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev";
 
 const RegisterScreen = ({ navigation }) => {
     const [fullName, setFullName] = useState('');

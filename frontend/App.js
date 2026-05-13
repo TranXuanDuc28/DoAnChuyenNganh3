@@ -16,6 +16,9 @@ import HomeScreen from './src/screens/HomeScreen';
 import QuizScreen from './src/screens/QuizScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
 import CustomTabBar from './src/components/CustomTabBar';
+import RecognitionHistoryScreen from './src/screens/RecognitionHistoryScreen';
+import LearningProgressScreen from './src/screens/LearningProgressScreen';
+import LearningStreakScreen from './src/screens/LearningStreakScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -30,7 +33,7 @@ function MainTabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
       <Tab.Screen name="Trans" component={MainScreen} options={{ title: 'Trans' }} />
       <Tab.Screen name="Explore" component={ExploreScreen} options={{ title: 'Learn' }} />
-      <Tab.Screen name="Stats" component={HomeScreen} options={{ title: 'Stats' }} />
+      <Tab.Screen name="Stats" component={LearningProgressScreen} options={{ title: 'Stats' }} />
       <Tab.Screen name="Profile" component={HomeScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );
@@ -60,6 +63,8 @@ export default function App() {
           <Stack.Screen name="TopicLessons" component={TopicLessonsScreen} />
           <Stack.Screen name="Quiz" component={QuizScreen} />
           <Stack.Screen name="QuizResult" component={QuizResultScreen} />
+          <Stack.Screen name="RecognitionHistory" component={RecognitionHistoryScreen} />
+          <Stack.Screen name="LearningStreak" component={LearningStreakScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

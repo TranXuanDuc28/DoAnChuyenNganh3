@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Video } from 'expo-av';
 import { styles } from '../styles/QuizStyles';
 
-const API_BASE = "https://unpriggish-conductorial-lilah.ngrok-free.dev";
+const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev";
 
 const QuizScreen = ({ navigation, route }) => {
     const { categoryId, categoryName } = route.params || { categoryId: 1, categoryName: 'General' };
