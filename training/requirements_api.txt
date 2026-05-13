@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+websockets
+python-multipart
+google-generativeai
+opencv-python
+mediapipe
+torch
+numpy

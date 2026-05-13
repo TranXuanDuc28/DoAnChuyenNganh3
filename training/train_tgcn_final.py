@@ -1,0 +1,214 @@
+import os
+import json
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from torch.utils.data import Dataset, DataLoader
+import sys
+
+# Constants
+FINAL_DIR = os.path.dirname(os.path.abspath(__file__))
+WLASL_DIR = os.path.abspath(os.path.join(FINAL_DIR, '..', 'WLASL'))
+
+# Import TGCN model components from the local code folder in WLASL
+sys.path.append(os.path.join(WLASL_DIR, 'code', 'TGCN'))
+try:
+    from tgcn_model import GCN_muti_att
+except ModuleNotFoundError:
+    print("Lỗi: Không tìm thấy thư mục TGCN tại:", os.path.join(WLASL_DIR, 'code', 'TGCN'))
+    sys.exit(1)
+
+KEYPOINTS_DIR = os.path.join(FINAL_DIR, 'keypoints')
+LABEL_MAP_FILE = os.path.join(FINAL_DIR, 'final_label_map.json')
+
+NUM_SAMPLES = 30  
+NUM_CLASSES = 25  # Tăng lên 25 classes theo dataset Merged_ASL
+HIDDEN_SIZE = 64
+NUM_STAGES = 20
+
+# 55 Điểm ảnh Xương (Pose + Hand) theo chuẩn MediaPipe
+BODY_INDICES = [0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24]
+HAND_INDICES = list(range(33, 75))
+TGCN_INDICES = BODY_INDICES + HAND_INDICES
+
+class TGCN_Final_Dataset(Dataset):
+    def __init__(self, csv_file, label_map, is_train=True):
+        self.samples = []
+        self.labels = []
+        self.is_train = is_train
+        
+        path = os.path.join(FINAL_DIR, csv_file)
+        if not os.path.exists(path):
+            print(f"Cảnh báo: Không tìm thấy {csv_file}")
+            return
+            
+        df = pd.read_csv(path)
+        for _, row in df.iterrows():
+            video_id = row['VideoID']
+            gloss = row['Gloss']
+            file_path = os.path.join(KEYPOINTS_DIR, f"{video_id}.npy")
+            
+            # Chỉ nạp khi file trích xuất Mediapipe tồn tại
+            if os.path.exists(file_path) and gloss in label_map:
+                self.samples.append(file_path)
+                self.labels.append(label_map[gloss])
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        # seq là (T, 75, 3) do script extract lưu lại
+        seq = np.load(self.samples[idx])
+        T = seq.shape[0]
+        
+        # --- Normalization (Chống Domain Gap) ---
+        res_seq = np.zeros_like(seq)
+        for i in range(T):
+            nose = seq[i, 0]
+            s1, s2 = seq[i, 11], seq[i, 12]
+            shoulder_dist = np.linalg.norm(s1 - s2)
+            if shoulder_dist == 0:
+                shoulder_dist = 1.0
+                
+            if not np.all(nose == 0):
+                for j in range(75):
+                    if not np.all(seq[i, j] == 0):
+                        res_seq[i, j] = (seq[i, j] - nose) / shoulder_dist
+                        
+        seq = res_seq
+        
+        # Lấy 55 khớp nối X,Y
+        seq_55 = seq[:, TGCN_INDICES, :2]
+        
+        # --- Data Augmentation cho lúc huấn luyện ---
+        if self.is_train and T > 5:
+            if np.random.rand() > 0.5:
+                # Speed up
+                drop_count = np.random.randint(1, max(2, int(T * 0.2)))
+                keep_indices = sorted(np.random.choice(T, T - drop_count, replace=False))
+                seq_55 = seq_55[keep_indices]
+                T = seq_55.shape[0]
+            elif np.random.rand() > 0.5:
+                # Slow down
+                dup_count = np.random.randint(1, max(2, int(T * 0.2)))
+                dup_indices = sorted(list(range(T)) + list(np.random.choice(T, dup_count, replace=True)))
+                seq_55 = seq_55[dup_indices]
+                T = seq_55.shape[0]
+                
+            # Random Jittering & Scale
+            if np.random.rand() > 0.5:
+                noise = np.random.normal(0, 0.01, seq_55.shape)
+                seq_55 = seq_55 + noise
+            if np.random.rand() > 0.5:
+                scale = np.random.uniform(0.8, 1.2)
+                seq_55 = seq_55 * scale
+
+        indices = np.linspace(0, T - 1, NUM_SAMPLES).astype(int)
+        sampled_seq = seq_55[indices]
+        seq_flat = sampled_seq.transpose(1, 0, 2).reshape(55, -1)
+            
+        return torch.FloatTensor(seq_flat), torch.tensor(self.labels[idx])
+
+def train():
+    if not os.path.exists(LABEL_MAP_FILE):
+        print(f"Lỗi: Không tìm thấy file {LABEL_MAP_FILE}")
+        print("Vui lòng chạy extract_final_features.py trước.")
+        return
+
+    with open(LABEL_MAP_FILE, 'r') as f:
+        label_map = json.load(f)
+    
+    num_classes = len(label_map)
+    id_to_word = {v: k for k, v in label_map.items()}
+
+    # 1. Setup Data
+    print("\n--- Báo cáo Dữ liệu ---")
+    train_dataset = TGCN_Final_Dataset('train.csv', label_map, is_train=True)
+    val_dataset = TGCN_Final_Dataset('valid.csv', label_map, is_train=False)
+    
+    # Thống kê phân phối lớp
+    class_counts = {}
+    for label_idx in train_dataset.labels + val_dataset.labels:
+        word = id_to_word[label_idx]
+        class_counts[word] = class_counts.get(word, 0) + 1
+    
+    print(f"{'Gloss':<15} | {'Samples':<8}")
+    print("-" * 26)
+    for word in sorted(class_counts.keys()):
+        print(f"{word:<15} | {class_counts[word]:<8}")
+    
+    total_samples = len(train_dataset) + len(val_dataset)
+    print("-" * 26)
+    print(f"Tổng số lớp (Classes): {num_classes}")
+    print(f"Tổng số mẫu (Samples): {total_samples}")
+    print(f"Training: {len(train_dataset)} | Val: {len(val_dataset)}")
+    print("------------------------\n")
+
+    if total_samples == 0:
+        print("Lỗi: Không nạp được mẫu nào. Kiểm tra thư mục keypoints/ hoặc file CSV.")
+        return
+        
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    
+    # 2. Setup Model
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = GCN_muti_att(input_feature=NUM_SAMPLES*2, hidden_feature=HIDDEN_SIZE, 
+                         num_class=num_classes, p_dropout=0.3, num_stage=NUM_STAGES)
+    model.to(device)
+
+    # 3. Training
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.CrossEntropyLoss()
+    
+    best_val_acc = 0
+    epochs = 100
+    print(f"Bắt đầu huấn luyện {num_classes} lớp trên {device.type.upper()}...")
+    
+    for epoch in range(epochs):
+        model.train()
+        train_loss, correct_train = 0, 0
+        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1:03d}/{epochs} [TRAIN]")
+        
+        for x, y in train_pbar:
+            x, y = x.to(device), y.to(device)
+            optimizer.zero_grad()
+            output = model(x)
+            loss = criterion(output, y)
+            loss.backward()
+            optimizer.step()
+            
+            train_loss += loss.item()
+            _, predicted = torch.max(output.data, 1)
+            correct_train += (predicted == y).sum().item()
+            train_pbar.set_postfix({'loss': f"{loss.item():.4f}"})
+            
+        train_acc = correct_train / len(train_dataset)
+        
+        model.eval()
+        val_loss, correct_val = 0, 0
+        with torch.no_grad():
+            for x, y in val_loader:
+                x, y = x.to(device), y.to(device)
+                output = model(x)
+                loss = criterion(output, y)
+                val_loss += loss.item()
+                _, predicted = torch.max(output.data, 1)
+                correct_val += (predicted == y).sum().item()
+                
+        val_acc = correct_val / len(val_dataset)
+        
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            # Lưu model với số classes động trong tên nếu cần, hoặc ghi đè file FINAL
+            torch.save(model.state_dict(), 'best_tgcn_model_FINAL.pth')
+            
+        print(f"-> KQ Epoch [{epoch+1:03d}/{epochs}]: Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} (Best: {best_val_acc:.4f})")
+
+    print(f"\n✅ Hoàn tất! Best Accuracy: {best_val_acc:.4f}")
+
+if __name__ == "__main__":
+    train()
