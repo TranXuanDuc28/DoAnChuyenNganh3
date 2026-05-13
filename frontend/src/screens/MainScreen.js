@@ -3,6 +3,7 @@ import { Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
+import { MaterialIcons } from '@expo/vector-icons';
 import { styles } from '../styles/AppStyles';
 
 // --- ĐỊA CHỈ SERVER ---
@@ -138,7 +139,36 @@ export default function MainScreen() {
     `;
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+            <StatusBar barStyle="dark-content" backgroundColor="#fdf8ff" />
+            
+            {/* Header Mới */}
+            <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 20,
+                height: 60,
+                backgroundColor: '#fff',
+                borderBottomWidth: 1,
+                borderBottomColor: '#f1ecf9'
+            }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: '#4317c6' }}>SignLink</Text>
+                <TouchableOpacity 
+                    onPress={() => navigation && navigation.navigate('EditProfile')}
+                    style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: '#f1ecf9',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}
+                >
+                    <MaterialIcons name="person" size={24} color="#4317c6" />
+                </TouchableOpacity>
+            </View>
+
             <View style={styles.cameraContainer}>
                 <WebView
                     originWhitelist={['*']}
