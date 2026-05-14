@@ -98,7 +98,7 @@ const HomeScreen = ({ navigation }) => {
                             { label: 'Recognition', icon: 'scan-outline', bg: 'rgba(91, 60, 221, 0.10)', route: 'Main' },
                             { label: 'Learning', icon: 'book-outline', bg: 'rgba(225, 222, 236, 0.10)', route: 'Explore' },
                             { label: 'Practice', icon: 'fitness-outline', bg: 'rgba(95, 82, 147, 0.10)', route: 'Explore' },
-                            { label: 'History', icon: 'time-outline', bg: 'rgba(229, 224, 238, 0.50)', route: 'Main' }
+                            { label: 'History', icon: 'time-outline', bg: 'rgba(229, 224, 238, 0.50)', route: 'RecognitionHistory' }
                         ].map((item, idx) => (
                             <TouchableOpacity
                                 key={idx}

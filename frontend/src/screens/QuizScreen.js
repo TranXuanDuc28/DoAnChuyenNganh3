@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-    View, 
-    Text, 
-    ScrollView, 
-    TouchableOpacity, 
-    Image, 
-    SafeAreaView, 
+import {
+    View,
+    Text,
+    ScrollView,
+    TouchableOpacity,
+    Image,
+    SafeAreaView,
     StatusBar,
     ActivityIndicator,
     BlurView
@@ -34,7 +34,7 @@ const QuizScreen = ({ navigation, route }) => {
 
         const currentQuestion = questions[currentIndex];
         const isCorrect = selectedOption !== null && currentQuestion.options[selectedOption] === currentQuestion.correct_answer;
-        
+
         const currentResult = {
             question: currentQuestion.question_text,
             user_choice: selectedOption !== null ? currentQuestion.options[selectedOption] : "Skipped",
@@ -45,7 +45,7 @@ const QuizScreen = ({ navigation, route }) => {
 
         const newScore = isCorrect ? score + 1 : score;
         const newResults = [...results, currentResult];
-        
+
         setScore(newScore);
         setResults(newResults);
 
@@ -101,7 +101,7 @@ const QuizScreen = ({ navigation, route }) => {
                 </View>
             </View>
 
-            <ScrollView 
+            <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollViewContent}
             >
@@ -129,9 +129,9 @@ const QuizScreen = ({ navigation, route }) => {
                 <Text style={styles.questionText}>{currentQuestion.question_text}</Text>
 
                 {/* Video Card */}
-                <TouchableOpacity 
-                    style={styles.videoCard} 
-                    activeOpacity={0.9} 
+                <TouchableOpacity
+                    style={styles.videoCard}
+                    activeOpacity={0.9}
                     onPress={handlePlayPause}
                 >
                     {currentQuestion.video_url ? (
@@ -154,12 +154,12 @@ const QuizScreen = ({ navigation, route }) => {
                             />
                         </View>
                     ) : (
-                        <Image 
-                            source={{ uri: 'https://placehold.co/340x190' }} 
-                            style={styles.videoPlaceholder} 
+                        <Image
+                            source={{ uri: 'https://placehold.co/340x190' }}
+                            style={styles.videoPlaceholder}
                         />
                     )}
-                    
+
                     {/* Viewfinder Corners */}
                     <View style={styles.markerContainer} pointerEvents="none">
                         <View style={[styles.markerBase, styles.markerTopLeft]} />
@@ -183,7 +183,7 @@ const QuizScreen = ({ navigation, route }) => {
                         const letter = String.fromCharCode(65 + index);
                         const isActive = selectedOption === index;
                         return (
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 key={index}
                                 style={[styles.optionCard, isActive && styles.optionCardActive]}
                                 onPress={() => setSelectedOption(index)}
@@ -210,8 +210,8 @@ const QuizScreen = ({ navigation, route }) => {
                 <TouchableOpacity style={styles.skipButton} onPress={handleNext}>
                     <Text style={styles.skipText}>Skip</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                    style={styles.nextButton} 
+                <TouchableOpacity
+                    style={styles.nextButton}
                     onPress={handleNext}
                     disabled={selectedOption === null}
                 >

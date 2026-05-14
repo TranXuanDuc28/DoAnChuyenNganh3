@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    View, 
-    Text, 
-    TouchableOpacity, 
-    Image, 
-    SafeAreaView, 
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    Image,
+    SafeAreaView,
     StatusBar,
     ScrollView,
     ActivityIndicator,
@@ -70,7 +70,7 @@ const PracticeDetailScreen = ({ navigation, route }) => {
             {/* Header Overlay */}
             <View style={styles.headerOverlay}>
                 <View style={styles.headerLeft}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={styles.backIconContainer}
                         onPress={() => navigation.goBack()}
                     >
@@ -83,14 +83,14 @@ const PracticeDetailScreen = ({ navigation, route }) => {
                 </View>
             </View>
 
-            <ScrollView 
+            <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollViewContent}
             >
                 {/* Video Section */}
-                <TouchableOpacity 
-                    style={styles.videoContainer} 
-                    activeOpacity={0.9} 
+                <TouchableOpacity
+                    style={styles.videoContainer}
+                    activeOpacity={0.9}
                     onPress={handlePlayPause}
                 >
                     <View style={styles.videoWrapper}>
@@ -104,12 +104,12 @@ const PracticeDetailScreen = ({ navigation, route }) => {
                                 onPlaybackStatusUpdate={status => setIsPlaying(status.isPlaying)}
                             />
                         ) : (
-                            <Image 
-                                source={{ uri: lesson.thumbnail ? `${API_BASE}/static/${lesson.thumbnail}` : 'https://placehold.co/338x188' }} 
-                                style={styles.videoPlaceholder} 
+                            <Image
+                                source={{ uri: lesson.thumbnail ? `${API_BASE}/static/${lesson.thumbnail}` : 'https://placehold.co/338x188' }}
+                                style={styles.videoPlaceholder}
                             />
                         )}
-                        
+
                         {/* Viewfinder Corners */}
                         <View style={styles.markerContainer}>
                             <View style={[styles.markerBase, styles.markerTopLeft]} />
@@ -125,11 +125,11 @@ const PracticeDetailScreen = ({ navigation, route }) => {
                                     colors={['#7B61FF', '#A78BFA']}
                                     style={styles.playButtonCircle}
                                 >
-                                    <Ionicons 
-                                        name="play" 
-                                        size={32} 
-                                        color="white" 
-                                        style={{ marginLeft: 4 }} 
+                                    <Ionicons
+                                        name="play"
+                                        size={32}
+                                        color="white"
+                                        style={{ marginLeft: 4 }}
                                     />
                                 </LinearGradient>
                             </View>
@@ -163,7 +163,7 @@ const PracticeDetailScreen = ({ navigation, route }) => {
                 {/* Instruction Content */}
                 <View style={styles.contentSection}>
                     <Text style={styles.howToTitle}>How to sign "{lesson.title}"</Text>
-                    
+
                     <View style={styles.stepList}>
                         {[
                             { id: 1, text: 'Raise your right hand near your forehead.', label: 'Initial Position', icon: 'hand-left-outline' },
@@ -199,7 +199,7 @@ const PracticeDetailScreen = ({ navigation, route }) => {
                         <Ionicons name="chevron-forward" size={20} color="#484555" />
                     </TouchableOpacity>
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.actionBtn}
                     onPress={() => navigation.navigate('Main', { lessonId: lesson.lesson_id })}
                 >

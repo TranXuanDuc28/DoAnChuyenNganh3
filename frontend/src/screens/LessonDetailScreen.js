@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    View, 
-    Text, 
-    ScrollView, 
-    Image, 
-    TouchableOpacity, 
+import {
+    View,
+    Text,
+    ScrollView,
+    Image,
+    TouchableOpacity,
     SafeAreaView,
     StatusBar,
     Dimensions,
@@ -44,33 +44,33 @@ const LessonDetailScreen = ({ navigation, route }) => {
 
             {/* Header Navigation */}
             <View style={styles.headerNav}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => navigation.goBack()}
                 >
                     <Ionicons name="chevron-back" size={24} color="#4317C6" />
                 </TouchableOpacity>
                 <Text style={styles.headerLogoText}>Lumina Sign</Text>
-                <Image 
-                    source={{ uri: 'https://placehold.co/40x40' }} 
-                    style={styles.headerProfilePic} 
+                <Image
+                    source={{ uri: 'https://placehold.co/40x40' }}
+                    style={styles.headerProfilePic}
                 />
             </View>
 
-            <ScrollView 
+            <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollViewContent}
             >
                 {/* Video Card Player (Show thumbnail of first lesson) */}
                 <View style={styles.videoCard}>
-                    <Image 
-                        source={{ uri: (lessons.length > 0 && lessons[0].thumbnail) ? `${API_BASE}/static/${lessons[0].thumbnail}` : 'https://placehold.co/342x192' }} 
-                        style={styles.videoPlaceholder} 
+                    <Image
+                        source={{ uri: (lessons.length > 0 && lessons[0].thumbnail) ? `${API_BASE}/static/${lessons[0].thumbnail}` : 'https://placehold.co/342x192' }}
+                        style={styles.videoPlaceholder}
                         resizeMode="cover"
                     />
-                    
+
                     <TouchableOpacity style={styles.playButtonCenter} onPress={() => {
-                        if(lessons.length > 0) navigation.navigate('PracticeDetail', { lessonId: lessons[0].lesson_id })
+                        if (lessons.length > 0) navigation.navigate('PracticeDetail', { lessonId: lessons[0].lesson_id })
                     }}>
                         <Ionicons name="play" size={32} color="#4317C6" style={{ marginLeft: 4 }} />
                     </TouchableOpacity>
@@ -80,7 +80,7 @@ const LessonDetailScreen = ({ navigation, route }) => {
                 <View style={styles.lessonInfoSection}>
                     <Text style={styles.lessonTitle}>{category_name} Mastery</Text>
                     <Text style={styles.lessonDescription}>
-                        This series covers {lessons.length} essential signs related to {category_name.toLowerCase()}. 
+                        This series covers {lessons.length} essential signs related to {category_name.toLowerCase()}.
                         Start your journey to master communication in this domain.
                     </Text>
                     <View style={styles.tagRow}>
@@ -104,8 +104,8 @@ const LessonDetailScreen = ({ navigation, route }) => {
                             <ActivityIndicator size="small" color="#4317C6" />
                         ) : (
                             lessons.map((item) => (
-                                <TouchableOpacity 
-                                    key={item.lesson_id} 
+                                <TouchableOpacity
+                                    key={item.lesson_id}
                                     style={styles.vocabItem}
                                     onPress={() => navigation.navigate('PracticeDetail', { lessonId: item.lesson_id })}
                                 >
@@ -125,7 +125,7 @@ const LessonDetailScreen = ({ navigation, route }) => {
 
                 {/* Action Buttons Section */}
                 <View style={styles.actionSectionContainer}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={styles.btnPracticeNow}
                         onPress={() => {
                             if (lessons.length > 0) navigation.navigate('PracticeDetail', { lessonId: lessons[0].lesson_id });
@@ -143,7 +143,7 @@ const LessonDetailScreen = ({ navigation, route }) => {
                     </TouchableOpacity>
 
                     <View style={styles.secondaryButtonRow}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.btnTakeQuiz}
                             onPress={() => navigation.navigate('Quiz', { categoryId: category_id, categoryName: category_name })}
                         >

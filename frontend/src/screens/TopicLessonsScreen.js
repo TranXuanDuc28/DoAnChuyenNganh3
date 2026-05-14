@@ -12,7 +12,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/ExploreStyles';
 
+<<<<<<< HEAD
 import { API_BASE } from '../constants/Config';
+=======
+const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev"; 
+>>>>>>> NgoVanBao
 
 const TopicLessonsScreen = ({ navigation, route }) => {
     const { category_id, category_name } = route.params;

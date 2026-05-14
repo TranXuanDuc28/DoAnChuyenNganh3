@@ -3,7 +3,7 @@ from mysql.connector import Error
 import os
 
 class DatabaseManager:
-    def __init__(self, host="localhost", user="root", password="12345678", database="sign_language_app"):
+    def __init__(self, host="localhost", user="root", password="", database="dacn3"):
         self.host = host
         self.user = user
         self.password = password
@@ -187,7 +187,7 @@ class DatabaseManager:
                 )
             """)
             
-            # Recognition History (Already added in previous version, ensuring it's here)
+            # Recognition History
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS recognition_history (
                     history_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -198,6 +198,21 @@ class DatabaseManager:
                     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
                 )
             """)
+
+            # Cập nhật schema nếu bảng đã tồn tại nhưng thiếu cột (dành cho migration)
+            try:
+                # Thêm cột type nếu chưa có
+                cursor.execute("ALTER TABLE recognition_history ADD COLUMN IF NOT EXISTS type ENUM('TEXT', 'VIDEO', 'AUDIO') DEFAULT 'TEXT' AFTER user_id")
+                # Thêm cột thumbnail nếu chưa có
+                cursor.execute("ALTER TABLE recognition_history ADD COLUMN IF NOT EXISTS thumbnail VARCHAR(255) AFTER confidence")
+                # Thêm cột video_url nếu chưa có
+                cursor.execute("ALTER TABLE recognition_history ADD COLUMN IF NOT EXISTS video_url VARCHAR(255) AFTER thumbnail")
+                # Thêm cột is_bookmarked nếu chưa có
+                cursor.execute("ALTER TABLE recognition_history ADD COLUMN IF NOT EXISTS is_bookmarked BOOLEAN DEFAULT FALSE AFTER video_url")
+                # Đổi kiểu recognized_text thành TEXT nếu đang là VARCHAR
+                cursor.execute("ALTER TABLE recognition_history MODIFY COLUMN recognized_text TEXT")
+            except:
+                pass 
 
             self.connection.commit()
             print("[DB] Database initialized successfully.")

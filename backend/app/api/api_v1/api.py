@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.api_v1.endpoints import auth, categories, lessons, recognition, users, quizzes
+from app.api.api_v1.endpoints import auth, categories, lessons, recognition, users, quizzes, history, progress, streak
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -8,3 +8,6 @@ api_router.include_router(lessons.router, prefix="/lessons", tags=["lessons"])
 api_router.include_router(recognition.router, prefix="/recognition", tags=["recognition"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(quizzes.router, prefix="/quizzes", tags=["quizzes"])
+api_router.include_router(history.router, prefix="/history", tags=["history"])
+api_router.include_router(progress.router, prefix="/progress", tags=["progress"])
+api_router.include_router(streak.router, prefix="/streak", tags=["streak"])

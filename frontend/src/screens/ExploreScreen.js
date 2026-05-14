@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    View, 
-    Text, 
-    ScrollView, 
-    TextInput, 
-    TouchableOpacity, 
-    Image, 
+import {
+    View,
+    Text,
+    ScrollView,
+    TextInput,
+    TouchableOpacity,
+    Image,
     SafeAreaView,
     StatusBar,
     ActivityIndicator
@@ -54,7 +54,7 @@ const ExploreScreen = ({ navigation }) => {
         try {
             let url = `${API_BASE}/api/v1/lessons`;
             if (catId) url += `?category_id=${catId}`;
-            
+
             const response = await fetch(url);
             const data = await response.json();
             setLessons(Array.isArray(data) ? data : []);
@@ -84,22 +84,22 @@ const ExploreScreen = ({ navigation }) => {
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" />
-            
+
             {/* Top Navigation */}
             <View style={styles.topNav}>
                 <View style={styles.logoContainer}>
                     <View style={styles.logoIcon}>
-                        <Ionicons name="flash" size={16} color="white" style={{alignSelf: 'center', marginTop: 3}} />
+                        <Ionicons name="flash" size={16} color="white" style={{ alignSelf: 'center', marginTop: 3 }} />
                     </View>
                     <Text style={styles.logoText}>Lumina Sign</Text>
                 </View>
-                <Image 
-                    source={{ uri: 'https://placehold.co/40x40' }} 
-                    style={styles.profilePic} 
+                <Image
+                    source={{ uri: 'https://placehold.co/40x40' }}
+                    style={styles.profilePic}
                 />
             </View>
 
-            <ScrollView 
+            <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollViewContent}
             >
@@ -125,12 +125,12 @@ const ExploreScreen = ({ navigation }) => {
                         categories.map((cat) => {
                             const config = topicConfig[cat.category_name] || topicConfig['General'];
                             return (
-                                <TouchableOpacity 
-                                    key={cat.category_id} 
+                                <TouchableOpacity
+                                    key={cat.category_id}
                                     style={styles.lessonCard}
-                                    onPress={() => navigation.navigate('LessonDetail', { 
-                                        category_id: cat.category_id, 
-                                        category_name: cat.category_name 
+                                    onPress={() => navigation.navigate('LessonDetail', {
+                                        category_id: cat.category_id,
+                                        category_name: cat.category_name
                                     })}
                                 >
                                     <View style={styles.lessonCardTop}>
@@ -156,31 +156,31 @@ const ExploreScreen = ({ navigation }) => {
                                         </View>
                                     </View>
 
-                                <View style={styles.cardStatsRow}>
-                                    <View style={styles.statItem}>
-                                        <Ionicons name="book-outline" size={16} color="#484555" />
-                                        <Text style={styles.statText}>{cat.lesson_count} signs</Text>
+                                    <View style={styles.cardStatsRow}>
+                                        <View style={styles.statItem}>
+                                            <Ionicons name="book-outline" size={16} color="#484555" />
+                                            <Text style={styles.statText}>{cat.lesson_count} signs</Text>
+                                        </View>
+                                        <View style={styles.statItem}>
+                                            <Ionicons name="time-outline" size={16} color="#484555" />
+                                            <Text style={styles.statText}>~10 mins</Text>
+                                        </View>
                                     </View>
-                                    <View style={styles.statItem}>
-                                        <Ionicons name="time-outline" size={16} color="#484555" />
-                                        <Text style={styles.statText}>~10 mins</Text>
+
+                                    <View style={styles.progressBarBackground}>
+                                        <View style={[styles.progressBarFill, { width: '0%', backgroundColor: '#7B61FF' }]} />
                                     </View>
-                                </View>
 
-                                <View style={styles.progressBarBackground}>
-                                    <View style={[styles.progressBarFill, { width: '0%', backgroundColor: '#7B61FF' }]} />
-                                </View>
-
-                                <TouchableOpacity 
-                                    style={styles.startButton} 
-                                    onPress={() => navigation.navigate('LessonDetail', { 
-                                        category_id: cat.category_id, 
-                                        category_name: cat.category_name 
-                                    })}
-                                >
-                                    <Text style={styles.startButtonText}>Start Learning</Text>
-                                    <Ionicons name="play" size={14} color="white" />
-                                </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.startButton}
+                                        onPress={() => navigation.navigate('LessonDetail', {
+                                            category_id: cat.category_id,
+                                            category_name: cat.category_name
+                                        })}
+                                    >
+                                        <Text style={styles.startButtonText}>Start Learning</Text>
+                                        <Ionicons name="play" size={14} color="white" />
+                                    </TouchableOpacity>
                                 </TouchableOpacity>
                             );
                         })
