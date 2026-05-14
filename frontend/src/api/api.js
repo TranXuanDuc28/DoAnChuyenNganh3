@@ -1,10 +1,9 @@
 import axios from 'axios';
 
-// THAY ĐỔI IP NÀY THÀNH IP MÁY TÍNH CỦA BẠN NẾU CHẠY TRÊN ĐIỆN THOẠI THẬT
-const API_BASE_URL = 'http://192.168.1.42:8001';
+import { API_BASE } from '../constants/Config';
 
 const api = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: API_BASE,
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
@@ -12,11 +11,11 @@ const api = axios.create({
 });
 
 export const authApi = {
-    register: (userData) => api.post('/register', userData),
-    login: (credentials) => api.post('/login', credentials),
-    getProfile: (userId) => api.get(`/get-profile?user_id=${userId}`),
-    forgotPassword: (email) => api.post('/forgot-password', { email }),
-    editProfile: (userId, profileData) => api.post(`/edit-profile?user_id=${userId}`, profileData),
+    register: (userData) => api.post('/api/v1/auth/register', userData),
+    login: (credentials) => api.post('/api/v1/auth/login', credentials),
+    getProfile: (userId) => api.get(`/api/v1/users/profile?user_id=${userId}`),
+    forgotPassword: (email) => api.post('/api/v1/auth/forgot-password', { email }),
+    editProfile: (userId, profileData) => api.post(`/api/v1/users/profile?user_id=${userId}`, profileData),
 };
 
 export default api;

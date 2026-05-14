@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { styles } from '../styles/ExploreStyles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { API_BASE } from '../constants/Config';
 
@@ -33,11 +35,34 @@ const ExploreScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedLevel, setSelectedLevel] = useState('All');
+    const [user, setUser] = useState(null);
 
-    useEffect(() => {
-        fetchCategories();
-        fetchLessons();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchCategories();
+            fetchLessons();
+            fetchUserData();
+        }, [])
+    );
+
+    const fetchUserData = async () => {
+        try {
+            const token = await AsyncStorage.getItem('userToken');
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE}/api/v1/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setUser(data);
+            }
+        } catch (error) {
+            console.error("Error fetching user data:", error);
+        }
+    };
 
     const fetchCategories = async () => {
         try {
@@ -87,14 +112,14 @@ const ExploreScreen = ({ navigation }) => {
 
             {/* Top Navigation */}
             <View style={styles.topNav}>
-                <View style={styles.logoContainer}>
+                <View style={styles.logoRow}>
                     <View style={styles.logoIcon}>
                         <Ionicons name="flash" size={16} color="white" style={{ alignSelf: 'center', marginTop: 3 }} />
                     </View>
                     <Text style={styles.logoText}>Lumina Sign</Text>
                 </View>
                 <Image
-                    source={{ uri: 'https://placehold.co/40x40' }}
+                    source={{ uri: user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
                     style={styles.profilePic}
                 />
             </View>
@@ -103,18 +128,16 @@ const ExploreScreen = ({ navigation }) => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollViewContent}
             >
-                {/* Header */}
-                <View style={styles.headerWrapper}>
-                    <Text style={styles.title}>Explore Lessons</Text>
-                    <Text style={styles.subtitle}>
-                        Continue your sign language mastery{'\n'}journey.
-                    </Text>
-                </View>
-
                 {/* Search Bar */}
                 <View style={styles.searchContainer}>
-                    <Ionicons name="search" size={20} color="#797587" style={styles.searchIcon} />
+                    <Ionicons name="search-outline" size={20} color="#797587" style={styles.searchIcon} />
                     <Text style={styles.searchPlaceholder}>Search topics...</Text>
+                </View>
+
+                {/* Popular Topics Section */}
+                <View style={styles.headerWrapper}>
+                    <Text style={styles.title}>Explore Lessons</Text>
+                    <Text style={styles.subtitle}>Continue your sign language mastery journey.</Text>
                 </View>
 
                 {/* Category Cards */}
@@ -135,7 +158,6 @@ const ExploreScreen = ({ navigation }) => {
                                 >
                                     <View style={styles.lessonCardTop}>
                                         <View style={[styles.lessonImageContainer, { backgroundColor: config.bg, justifyContent: 'center', alignItems: 'center' }]}>
-                                            {/* Priority: Real Image (if any) -> Themed Icon */}
                                             {cat.image ? (
                                                 <Image source={{ uri: cat.image }} style={styles.lessonImage} />
                                             ) : (

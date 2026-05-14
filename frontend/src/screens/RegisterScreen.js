@@ -1,253 +1,197 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
     TextInput,
     TouchableOpacity,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Animated,
+    SafeAreaView,
     StatusBar,
-    ActivityIndicator,
-    Alert,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { authApi } from '../api/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { registerStyles as styles } from '../styles/RegisterStyles';
+import { Ionicons } from '@expo/vector-icons';
+import { styles } from '../styles/RegisterStyles';
+import { API_BASE } from '../constants/Config';
 
-export default function RegisterScreen({ navigation }) {
+const RegisterScreen = ({ navigation }) => {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [agreed, setAgreed] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [focusedField, setFocusedField] = useState(null);
-
-    const buttonScale = useRef(new Animated.Value(1)).current;
-
-    const handlePressIn = () => {
-        Animated.spring(buttonScale, { toValue: 0.98, useNativeDriver: true }).start();
-    };
-    const handlePressOut = () => {
-        Animated.spring(buttonScale, { toValue: 1, friction: 3, useNativeDriver: true }).start();
-    };
+    const [loading, setLoading] = useState(false);
 
     const handleRegister = async () => {
-        if (!fullName || !email || !password || !confirmPassword) {
-            Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin.');
+        if (!fullName || !email || !password) {
+            alert("Please fill in all information.");
             return;
         }
         if (password !== confirmPassword) {
-            Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp.');
+            alert("Passwords do not match.");
             return;
         }
         if (!agreed) {
-            Alert.alert('Lỗi', 'Vui lòng đồng ý với Điều khoản dịch vụ.');
+            alert("You must agree to the terms of use.");
             return;
         }
-        setIsLoading(true);
+
+        setLoading(true);
         try {
-            const response = await authApi.register({
-                full_name: fullName,
-                email: email,
-                password: password
+            const response = await fetch(`${API_BASE}/api/v1/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    name: fullName
+                })
             });
-
-            if (response.data.status === 'success') {
-                const { token } = response.data;
-                await AsyncStorage.setItem('user_token', token);
-
-                Alert.alert('Thành công!', 'Tài khoản đã được tạo.', [
-                    { text: 'OK', onPress: () => navigation && navigation.navigate('Login') }
-                ]);
+            const data = await response.json();
+            if (response.ok) {
+                alert("Registration successful! Please log in.");
+                navigation.navigate('Login');
+            } else {
+                alert(data.detail || "Registration failed.");
             }
         } catch (error) {
-            console.error(error);
-            const errorMsg = error.response?.data?.detail || "Đăng ký thất bại. Vui lòng thử lại.";
-            Alert.alert('Lỗi', errorMsg);
+            alert("Server connection error.");
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
-    const getInputStyle = (field) => [
-        styles.input,
-        focusedField === field && styles.inputFocused,
-    ];
-
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle="dark-content" backgroundColor="#fdf8ff" />
+        <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="dark-content" />
 
-            {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>SignLink</Text>
-                <TouchableOpacity style={styles.headerIconBtn}>
-                    <MaterialIcons name="language" size={24} color="#4317c6" />
+                <Text style={styles.logoText}>SignLink</Text>
+                <TouchableOpacity style={styles.profileIcon} onPress={() => navigation.navigate('Login')}>
+                    <Ionicons name="person" size={20} color="#4317C6" />
                 </TouchableOpacity>
             </View>
 
             <KeyboardAvoidingView
-                style={styles.keyboardView}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
             >
                 <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.content}
                 >
                     <View style={styles.card}>
-                        {/* Branding */}
-                        <View style={styles.brandingSection}>
-                            <View style={styles.iconContainer}>
-                                <MaterialIcons name="person-add" size={32} color="#fff" />
+                        {/* Header Info */}
+                        <View style={styles.topIconSection}>
+                            <View style={styles.iconBox}>
+                                <Ionicons name="hand-right" size={32} color="white" />
                             </View>
                             <Text style={styles.cardTitle}>Create your account</Text>
                             <Text style={styles.cardSubtitle}>
-                                Start translating sign language in seconds
+                                Start translating sign language in{'\n'}seconds
                             </Text>
                         </View>
 
-                        {/* Full Name */}
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Full Name</Text>
-                            <TextInput
-                                style={getInputStyle('name')}
-                                placeholder="John Doe"
-                                placeholderTextColor="rgba(121,117,135,0.5)"
-                                value={fullName}
-                                onChangeText={setFullName}
-                                onFocus={() => setFocusedField('name')}
-                                onBlur={() => setFocusedField(null)}
-                            />
-                        </View>
-
-                        {/* Email */}
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Email Address</Text>
-                            <TextInput
-                                style={getInputStyle('email')}
-                                placeholder="name@example.com"
-                                placeholderTextColor="rgba(121,117,135,0.5)"
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                value={email}
-                                onChangeText={setEmail}
-                                onFocus={() => setFocusedField('email')}
-                                onBlur={() => setFocusedField(null)}
-                            />
-                        </View>
-
-                        {/* Password */}
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Password</Text>
-                            <View style={styles.passwordWrapper}>
-                                <TextInput
-                                    style={[...getInputStyle('password'), styles.passwordInput]}
-                                    placeholder="••••••••"
-                                    placeholderTextColor="rgba(121,117,135,0.5)"
-                                    secureTextEntry={!showPassword}
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    onFocus={() => setFocusedField('password')}
-                                    onBlur={() => setFocusedField(null)}
-                                />
-                                <TouchableOpacity
-                                    style={styles.eyeButton}
-                                    onPress={() => setShowPassword(!showPassword)}
-                                >
-                                    <MaterialIcons
-                                        name={showPassword ? 'visibility-off' : 'visibility'}
-                                        size={22}
-                                        color="#797587"
+                        {/* Form */}
+                        <View style={styles.form}>
+                            {/* Full Name */}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Full Name</Text>
+                                <View style={styles.inputWrapper}>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="John Doe"
+                                        placeholderTextColor="rgba(121, 117, 135, 0.50)"
+                                        value={fullName}
+                                        onChangeText={setFullName}
                                     />
-                                </TouchableOpacity>
+                                </View>
                             </View>
-                        </View>
 
-                        {/* Confirm Password */}
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Confirm Password</Text>
-                            <View style={styles.passwordWrapper}>
-                                <TextInput
-                                    style={[...getInputStyle('confirm'), styles.passwordInput]}
-                                    placeholder="••••••••"
-                                    placeholderTextColor="rgba(121,117,135,0.5)"
-                                    secureTextEntry={!showConfirmPassword}
-                                    value={confirmPassword}
-                                    onChangeText={setConfirmPassword}
-                                    onFocus={() => setFocusedField('confirm')}
-                                    onBlur={() => setFocusedField(null)}
-                                />
-                                <TouchableOpacity
-                                    style={styles.eyeButton}
-                                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                                >
-                                    <MaterialIcons
-                                        name={showConfirmPassword ? 'visibility-off' : 'visibility'}
-                                        size={22}
-                                        color="#797587"
+                            {/* Email */}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Email Address</Text>
+                                <View style={styles.inputWrapper}>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="name@example.com"
+                                        placeholderTextColor="rgba(121, 117, 135, 0.50)"
+                                        value={email}
+                                        onChangeText={setEmail}
+                                        keyboardType="email-address"
+                                        autoCapitalize="none"
                                     />
-                                </TouchableOpacity>
+                                </View>
                             </View>
-                        </View>
 
-                        {/* Terms */}
-                        <TouchableOpacity
-                            style={styles.termsRow}
-                            onPress={() => setAgreed(!agreed)}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-                                {agreed && <MaterialIcons name="check" size={16} color="#fff" />}
+                            {/* Password */}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Password</Text>
+                                <View style={styles.inputWrapper}>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="••••••••"
+                                        placeholderTextColor="rgba(121, 117, 135, 0.50)"
+                                        value={password}
+                                        onChangeText={setPassword}
+                                        secureTextEntry
+                                    />
+                                </View>
                             </View>
-                            <Text style={styles.termsText}>
-                                I agree to the{' '}
-                                <Text style={styles.termsLink}>Terms of Service</Text>
-                                {' '}and{' '}
-                                <Text style={styles.termsLink}>Privacy Policy</Text>.
-                            </Text>
-                        </TouchableOpacity>
 
-                        {/* Sign Up */}
-                        <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                            {/* Confirm Password */}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Confirm Password</Text>
+                                <View style={styles.inputWrapper}>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="••••••••"
+                                        placeholderTextColor="rgba(121, 117, 135, 0.50)"
+                                        value={confirmPassword}
+                                        onChangeText={setConfirmPassword}
+                                        secureTextEntry
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Agreement */}
                             <TouchableOpacity
-                                style={styles.submitButton}
-                                onPress={handleRegister}
-                                onPressIn={handlePressIn}
-                                onPressOut={handlePressOut}
-                                disabled={isLoading}
-                                activeOpacity={1}
+                                style={styles.agreementSection}
+                                onPress={() => setAgreed(!agreed)}
+                                activeOpacity={0.8}
                             >
-                                {isLoading ? (
-                                    <ActivityIndicator color="#fff" size="small" />
-                                ) : (
-                                    <>
-                                        <Text style={styles.submitText}>Sign Up</Text>
-                                        <MaterialIcons name="arrow-forward" size={22} color="#fff" />
-                                    </>
-                                )}
+                                <View style={[
+                                    styles.checkbox,
+                                    agreed && { backgroundColor: '#4317C6', borderColor: '#4317C6' }
+                                ]}>
+                                    {agreed && <Ionicons name="checkmark" size={14} color="white" />}
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.agreementText}>
+                                        I agree to the <Text style={styles.linkText}>Terms of Service</Text>{'\n'}and <Text style={styles.linkText}>Privacy Policy</Text>.
+                                    </Text>
+                                </View>
                             </TouchableOpacity>
-                        </Animated.View>
+
+                            {/* Sign Up Button */}
+                            <TouchableOpacity style={styles.signUpButton} onPress={handleRegister}>
+                                <Text style={styles.signUpButtonText}>Sign Up</Text>
+                                <Ionicons name="arrow-forward" size={18} color="white" />
+                            </TouchableOpacity>
+                        </View>
 
                         {/* Footer */}
-                        <View style={styles.footer}>
-                            <View style={styles.footerRow}>
-                                <Text style={styles.footerText}>Already have an account?</Text>
-                                <TouchableOpacity onPress={() => navigation && navigation.navigate('Login')}>
-                                    <Text style={styles.footerLink}>Log In</Text>
-                                </TouchableOpacity>
-                            </View>
+                        <View style={styles.footerSection}>
+                            <Text style={styles.footerText}>Already have an account? </Text>
+                            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                                <Text style={styles.footerLink}>Log In</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
-}
+};
+
+export default RegisterScreen;

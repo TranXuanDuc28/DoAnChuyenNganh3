@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, SafeAreaView, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomNav } from '../components/CustomTabBar';
 import styles from '../styles/RecognitionHistoryStyles';
-
-const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev";
+import { API_BASE } from '../constants/Config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 const RecognitionHistoryScreen = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState('All');
@@ -15,6 +16,32 @@ const RecognitionHistoryScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [user, setUser] = useState(null);
+
+  const fetchUserData = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE}/api/v1/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserData();
+    }, [])
+  );
 
   const filters = ['All', 'Text', 'Video', 'Audio'];
 
@@ -96,7 +123,7 @@ const RecognitionHistoryScreen = ({ navigation }) => {
           <Text style={styles.logoText}>Lumina Sign</Text>
         </View>
         <Image 
-          source={{ uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80' }} 
+          source={{ uri: (user && user.avatar) ? user.avatar : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }} 
           style={styles.profilePic} 
         />
       </View>

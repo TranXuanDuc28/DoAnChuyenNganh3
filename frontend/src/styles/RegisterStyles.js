@@ -1,215 +1,180 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 
-export const registerStyles = StyleSheet.create({
-    safeArea: {
+const { width } = Dimensions.get('window');
+
+export const styles = StyleSheet.create({
+    container: {
         flex: 1,
-        backgroundColor: '#fdf8ff',
+        backgroundColor: '#FDF8FF',
     },
-
-    // --- Header ---
     header: {
+        height: 56,
+        paddingHorizontal: 24,
+        paddingTop: 0,
+        backgroundColor: '#FDF8FF',
+        borderBottomWidth: 1,
+        borderBottomColor: '#C9C4D8',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 24,
-        height: 56,
-        borderBottomWidth: 1,
-        borderBottomColor: '#c9c4d8',
     },
-    headerTitle: {
+    logoText: {
+        color: '#4317C6',
         fontSize: 24,
+        fontFamily: 'Space Grotesk',
         fontWeight: '700',
-        color: '#4317c6',
     },
-    headerIconBtn: {
+    profileIcon: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#ebe6f3',
-        alignItems: 'center',
+        backgroundColor: '#EBE6F3',
         justifyContent: 'center',
+        alignItems: 'center',
     },
-
-    // --- Content ---
-    keyboardView: {
+    scrollView: {
         flex: 1,
     },
-    scrollContent: {
-        flexGrow: 1,
-        justifyContent: 'center',
+    content: {
         paddingHorizontal: 24,
-        paddingVertical: 32,
+        paddingVertical: 48,
+        alignItems: 'center',
     },
-
-    // --- Card ---
     card: {
-        backgroundColor: '#f7f1ff',
+        width: '100%',
+        maxWidth: 448,
+        padding: 32,
+        backgroundColor: '#F7F1FF',
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#c9c4d8',
-        paddingHorizontal: 28,
-        paddingVertical: 32,
-        shadowColor: '#5b3cdd',
+        borderColor: '#C9C4D8',
+        shadowColor: 'rgba(91, 60, 221, 0.1)',
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 1,
         shadowRadius: 20,
-        elevation: 4,
+        elevation: 5,
     },
-
-    // --- Branding ---
-    brandingSection: {
+    topIconSection: {
         alignItems: 'center',
-        marginBottom: 28,
+        marginBottom: 32,
     },
-    iconContainer: {
+    iconBox: {
         width: 64,
         height: 64,
+        backgroundColor: '#5B3CDD',
         borderRadius: 16,
-        backgroundColor: '#5b3cdd',
-        alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 20,
-        shadowColor: '#4317c6',
+        alignItems: 'center',
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 6,
+        shadowOpacity: 1,
+        shadowRadius: 6,
+        elevation: 4,
     },
     cardTitle: {
         fontSize: 24,
+        fontFamily: 'Space Grotesk',
         fontWeight: '600',
-        color: '#1c1a24',
+        color: '#1C1A24',
         textAlign: 'center',
+        marginTop: 16,
     },
     cardSubtitle: {
         fontSize: 16,
+        fontFamily: 'Lexend',
         color: '#484555',
-        lineHeight: 24,
         textAlign: 'center',
         marginTop: 8,
+        lineHeight: 24,
     },
-
-    // --- Form ---
-    formGroup: {
-        marginBottom: 20,
+    form: {
+        width: '100%',
+        gap: 24,
+    },
+    inputGroup: {
+        width: '100%',
     },
     label: {
         fontSize: 14,
+        fontFamily: 'Lexend',
         fontWeight: '600',
         color: '#484555',
         marginBottom: 6,
-        marginLeft: 4,
-        letterSpacing: 0.3,
     },
-    input: {
+    inputWrapper: {
         height: 56,
-        backgroundColor: '#ffffff',
+        backgroundColor: 'white',
         borderRadius: 16,
         borderWidth: 2,
-        borderColor: '#c9c4d8',
+        borderColor: '#C9C4D8',
         paddingHorizontal: 16,
-        fontSize: 16,
-        color: '#1c1a24',
-    },
-    inputFocused: {
-        borderColor: '#4317c6',
-        shadowColor: '#4317c6',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 2,
-    },
-    passwordWrapper: {
-        position: 'relative',
         justifyContent: 'center',
     },
-    passwordInput: {
-        paddingRight: 50,
+    input: {
+        fontSize: 16,
+        fontFamily: 'Lexend',
+        color: '#1C1A24',
     },
-    eyeButton: {
-        position: 'absolute',
-        right: 14,
-        padding: 4,
-    },
-
-    // --- Terms ---
-    termsRow: {
+    agreementSection: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
         gap: 12,
-        marginBottom: 24,
         paddingVertical: 4,
     },
     checkbox: {
-        width: 22,
-        height: 22,
+        width: 20,
+        height: 20,
         borderRadius: 6,
-        borderWidth: 2,
-        borderColor: '#c9c4d8',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#ffffff',
-        marginTop: 1,
+        borderWidth: 1,
+        borderColor: '#C9C4D8',
+        backgroundColor: 'white',
     },
-    checkboxChecked: {
-        backgroundColor: '#4317c6',
-        borderColor: '#4317c6',
-    },
-    termsText: {
-        flex: 1,
+    agreementText: {
         fontSize: 14,
+        fontFamily: 'Lexend',
         fontWeight: '600',
         color: '#484555',
-        lineHeight: 22,
-        letterSpacing: 0.3,
+        lineHeight: 20,
+        flex: 1,
     },
-    termsLink: {
-        color: '#4317c6',
-        fontWeight: '700',
+    linkText: {
+        color: '#4317C6',
     },
-
-    // --- Button ---
-    submitButton: {
+    signUpButton: {
         height: 56,
-        backgroundColor: '#4317c6',
+        backgroundColor: '#4317C6',
         borderRadius: 16,
-        alignItems: 'center',
+        flexDirection: 'row',
         justifyContent: 'center',
-        flexDirection: 'row',
+        alignItems: 'center',
         gap: 8,
-        shadowColor: '#4317c6',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
-        elevation: 6,
+        marginTop: 8,
     },
-    submitText: {
+    signUpButtonText: {
+        color: 'white',
         fontSize: 18,
+        fontFamily: 'Lexend',
         fontWeight: '600',
-        color: '#ffffff',
     },
-
-    // --- Footer ---
-    footer: {
-        marginTop: 28,
-        paddingTop: 20,
+    footerSection: {
+        marginTop: 24,
+        paddingTop: 24,
         borderTopWidth: 1,
-        borderTopColor: '#c9c4d8',
-        alignItems: 'center',
-    },
-    footerRow: {
+        borderTopColor: '#C9C4D8',
         flexDirection: 'row',
+        justifyContent: 'center',
         alignItems: 'center',
+        gap: 4,
     },
     footerText: {
         fontSize: 16,
+        fontFamily: 'Lexend',
         color: '#484555',
     },
     footerLink: {
         fontSize: 16,
+        fontFamily: 'Lexend',
         fontWeight: '700',
-        color: '#4317c6',
-        marginLeft: 4,
-        textDecorationLine: 'underline',
-    },
+        color: '#4317C6',
+        paddingVertical: 8,
+    }
 });

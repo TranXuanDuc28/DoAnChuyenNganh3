@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Dimensions, Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -8,7 +8,7 @@ export const styles = StyleSheet.create({
         backgroundColor: '#FDF8FF',
     },
     scrollViewContent: {
-        paddingTop: 80,
+        paddingTop: 20,
         paddingBottom: 100,
         paddingHorizontal: 24,
         alignItems: 'center',
@@ -255,8 +255,8 @@ export const styles = StyleSheet.create({
         gap: 8,
     },
     startButtonGradient: {
-       // Placeholder for button gradient if supported
-       backgroundColor: '#7B61FF',
+        // Placeholder for button gradient if supported
+        backgroundColor: '#7B61FF',
     },
     startButtonText: {
         color: 'white',
@@ -284,22 +284,17 @@ export const styles = StyleSheet.create({
         elevation: 8,
     },
     topNav: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 80,
-        paddingTop: 30, // For notch
-        paddingHorizontal: 24,
-        backgroundColor: 'rgba(253, 248, 255, 0.85)',
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(201, 196, 216, 0.30)',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        zIndex: 10,
+        paddingHorizontal: 24,
+        paddingVertical: 16,
+        backgroundColor: 'rgba(253, 248, 255, 0.8)',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(201, 196, 216, 0.2)',
+        zIndex: 1,
     },
-    logoContainer: {
+    logoRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
@@ -309,6 +304,8 @@ export const styles = StyleSheet.create({
         height: 24,
         backgroundColor: '#4317C6',
         borderRadius: 4,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     logoText: {
         color: '#4317C6',

@@ -15,13 +15,17 @@ export const styles = StyleSheet.create({
         paddingBottom: 15,
         backgroundColor: 'rgba(253, 248, 255, 0.9)',
     },
+    profileSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
     profilePic: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ddd' },
-    appTitle: {
-        fontSize: 20,
-        fontWeight: '800',
+
+    userName: {
+        fontSize: 16,
+        fontWeight: '600',
         color: '#2D3436',
-        letterSpacing: -0.5,
-        flex: 1,
     },
     langToggle: {
         flexDirection: 'row',

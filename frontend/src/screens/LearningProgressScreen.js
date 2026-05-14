@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import styles from '../styles/LearningProgressStyles';
-
-const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev";
+import { API_BASE } from '../constants/Config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 const LearningProgressScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -26,6 +27,7 @@ const LearningProgressScreen = ({ navigation }) => {
     activity: [],
     courses: []
   });
+  const [user, setUser] = useState(null);
 
   const fetchDashboard = async () => {
     try {
@@ -41,9 +43,31 @@ const LearningProgressScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
+  const fetchUserData = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE}/api/v1/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboard();
+      fetchUserData();
+    }, [])
+  );
 
   const onFab = () => {
     navigation.navigate('Explore');
@@ -65,12 +89,15 @@ const LearningProgressScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoRow}>
-          <MaterialCommunityIcons name="molecule" size={24} color="#7B61FF" />
+          <View style={styles.logoIcon}>
+            <Ionicons name="stats-chart" size={16} color="white" style={{ alignSelf: 'center', marginTop: 3 }} />
+          </View>
+
           <Text style={styles.logoText}>Lumina Sign</Text>
         </View>
         <Image
           source={{
-            uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
+            uri: user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
           }}
           style={styles.profilePic}
         />
@@ -126,8 +153,8 @@ const LearningProgressScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.statsSubGrid}>
-              <TouchableOpacity 
-                style={styles.statCard} 
+              <TouchableOpacity
+                style={styles.statCard}
                 onPress={() => navigation.navigate('LearningStreak')}
                 activeOpacity={0.8}
               >

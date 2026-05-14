@@ -13,8 +13,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-ico
 import { LinearGradient } from 'expo-linear-gradient';
 import styles from '../styles/LearningStreakStyles';
 import { BottomNav } from '../components/CustomTabBar';
-
-const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev";
+import { API_BASE } from '../constants/Config';
 
 const LearningStreakScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -128,7 +127,7 @@ const LearningStreakScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.milestonesSection}>
-            <Text style={styles.sectionHeader}>Cột mốc tiếp theo</Text>
+            <Text style={styles.sectionHeader}>Next Milestones</Text>
             
             {data.milestones.map((milestone, index) => (
               <View key={index} style={[styles.milestoneCard, milestone.progress_percent >= 100 && styles.milestoneCardActive]}>

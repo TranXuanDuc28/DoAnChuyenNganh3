@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     MYSQL_PASSWORD: str = "123456789" # Thay thế bằng mật khẩu thực tế nếu có
     MYSQL_SERVER: str = "localhost"
     MYSQL_PORT: str = "3306"
-    MYSQL_DB: str = "dacn3"
+    MYSQL_DB: str = "sign_language_app"
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

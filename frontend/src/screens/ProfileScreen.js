@@ -1,43 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    TouchableOpacity, 
-    SafeAreaView, 
-    Image, 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    SafeAreaView,
+    Image,
     ScrollView,
-    Alert 
+    Alert,
+    Switch,
+    StatusBar
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
+import styles from '../styles/ProfileStyles';
+import { API_BASE } from '../constants/Config';
 
 export default function ProfileScreen({ navigation }) {
     const [userData, setUserData] = useState(null);
+    const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
 
-    useEffect(() => {
-        const loadUserData = async () => {
-            const data = await AsyncStorage.getItem('userData');
-            if (data) {
-                setUserData(JSON.parse(data));
-            }
-        };
-        loadUserData();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            const fetchUserData = async () => {
+                try {
+                    const token = await AsyncStorage.getItem('userToken');
+                    if (!token) return;
+
+                    const response = await fetch(`${API_BASE}/api/v1/users/me`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setUserData(data);
+                        // Cập nhật lại AsyncStorage để đồng bộ
+                        await AsyncStorage.setItem('userData', JSON.stringify(data));
+                    } else {
+                        // Nếu fetch lỗi, fallback về data cũ trong storage
+                        const localData = await AsyncStorage.getItem('userData');
+                        if (localData) setUserData(JSON.parse(localData));
+                    }
+                } catch (error) {
+                    console.error("Error refreshing profile data:", error);
+                }
+            };
+            fetchUserData();
+        }, [])
+    );
 
     const handleLogout = () => {
         Alert.alert(
-            "Đăng xuất",
-            "Bạn có chắc chắn muốn đăng xuất không?",
+            "Logout",
+            "Are you sure you want to log out?",
             [
-                { text: "Hủy", style: "cancel" },
-                { 
-                    text: "Đăng xuất", 
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Logout",
                     style: "destructive",
                     onPress: async () => {
                         await AsyncStorage.clear();
-                        // Reset navigation stack và quay về Login
                         navigation.dispatch(
                             CommonActions.reset({
                                 index: 0,
@@ -52,206 +77,182 @@ export default function ProfileScreen({ navigation }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Header Profile */}
-                <View style={styles.header}>
-                    <View style={styles.profileImageContainer}>
-                        <Image 
-                            source={{ uri: 'https://ui-avatars.com/api/?name=' + (userData?.name || 'User') + '&background=6C5CE7&color=fff&size=128' }} 
-                            style={styles.profileImage} 
+            <StatusBar barStyle="dark-content" />
+
+            {/* Header */}
+            <View style={styles.header}>
+                <View style={styles.logoContainer}>
+                    <View style={styles.logoIcon}>
+                        <Image
+                            source={{ uri: 'https://ui-avatars.com/api/?name=LS&background=7B61FF&color=fff' }}
+                            style={{ width: '100%', height: '100%' }}
                         />
-                        <TouchableOpacity style={styles.editBadge}>
-                            <Ionicons name="camera" size={16} color="#FFF" />
+                    </View>
+                    <Text style={styles.logoText}>Lumina Sign</Text>
+                </View>
+                <TouchableOpacity style={styles.settingsBtn}>
+                    <Ionicons name="settings-outline" size={24} color="#484555" />
+                </TouchableOpacity>
+            </View>
+
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+            >
+                <View style={styles.mainContent}>
+
+                    {/* Profile Card */}
+                    <View style={styles.profileCard}>
+                        <View style={styles.avatarWrapper}>
+                            <LinearGradient
+                                colors={['#7B61FF', '#A78BFA']}
+                                style={styles.avatarGradient}
+                            >
+                                <View style={styles.avatarBorder}>
+                                    <Image
+                                        source={{ uri: userData?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
+                                        style={styles.avatar}
+                                    />
+                                </View>
+                            </LinearGradient>
+                            <TouchableOpacity 
+                                style={[styles.editAvatarBtn, { backgroundColor: '#7B61FF' }]}
+                                onPress={() => navigation.navigate('EditProfile')}
+                            >
+                                <MaterialCommunityIcons name="pencil" size={16} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.userName}>{userData?.name || 'Minh Duy'}</Text>
+                        <Text style={styles.userSubtitle}>Senior Sign Language Learner</Text>
+
+                        <View style={styles.badgesRow}>
+                            <View style={styles.verifiedBadge}>
+                                <MaterialCommunityIcons name="check-decagram" size={14} color="#D7CFFF" />
+                                <Text style={styles.verifiedText}>Verified</Text>
+                            </View>
+                            <View style={styles.streakBadge}>
+                                <MaterialCommunityIcons name="fire" size={14} color="#62616D" />
+                                <Text style={styles.streakText}>12 day streak</Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Progress Card */}
+                    <View style={styles.progressCard}>
+                        <View style={styles.progressHeader}>
+                            <Text style={styles.progressTitle}>Learning Progress</Text>
+                            <Text style={styles.levelBadge}>Level 14</Text>
+                        </View>
+
+                        <View style={styles.xpRow}>
+                            <Text style={styles.xpLabel}>Progress to next level</Text>
+                            <Text style={styles.xpValue}>840 / 1200 XP</Text>
+                        </View>
+
+                        <View style={styles.progressBarBg}>
+                            <LinearGradient
+                                colors={['#7B61FF', '#A78BFA']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={[styles.progressBarFill, { width: '70%' }]}
+                            />
+                        </View>
+
+                        <View style={styles.statsGrid}>
+                            <View style={styles.statBox}>
+                                <Text style={styles.statBoxLabel}>Signs Learned</Text>
+                                <Text style={styles.statBoxValue}>452</Text>
+                            </View>
+                            <View style={styles.statBox}>
+                                <Text style={styles.statBoxLabel}>AI Accuracy</Text>
+                                <Text style={styles.statBoxValue}>94%</Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Achievement Badges */}
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Achievements</Text>
+                        <TouchableOpacity>
+                            <Text style={styles.seeAllBtn}>See all</Text>
                         </TouchableOpacity>
                     </View>
-                    <Text style={styles.userName}>{userData?.name || 'Người dùng Lumina'}</Text>
-                    <Text style={styles.userEmail}>{userData?.email || 'user@example.com'}</Text>
-                </View>
 
-                {/* Stats Row */}
-                <View style={styles.statsRow}>
-                    <View style={styles.statItem}>
-                        <Text style={styles.statNumber}>12</Text>
-                        <Text style={styles.statLabel}>Bài học</Text>
+                    <View style={styles.achievementsGrid}>
+                        <View style={styles.achievementCard}>
+                            <View style={styles.achievementIconBox}>
+                                <MaterialCommunityIcons name="medal" size={32} color="#EAB308" />
+                            </View>
+                            <Text style={styles.achievementName}>Signing Master</Text>
+                        </View>
+                        <View style={styles.achievementCard}>
+                            <View style={styles.achievementIconBox}>
+                                <Ionicons name="sparkles" size={32} color="#7B61FF" />
+                            </View>
+                            <Text style={styles.achievementName}>AI Whisperer</Text>
+                        </View>
+                        <View style={[styles.achievementCard, styles.achievementCardLocked]}>
+                            <View style={styles.achievementIconBox}>
+                                <MaterialCommunityIcons name="star-circle" size={32} color="#484555" />
+                            </View>
+                            <Text style={styles.achievementName}>Weekly Top 1</Text>
+                        </View>
                     </View>
-                    <View style={styles.statItemDivider} />
-                    <View style={styles.statItem}>
-                        <Text style={styles.statNumber}>85%</Text>
-                        <Text style={styles.statLabel}>Tiến độ</Text>
+
+                    {/* Quick Settings */}
+                    <View style={styles.settingsCard}>
+                        <View style={styles.settingsGroupHeader}>
+                            <Text style={styles.settingsGroupTitle}>Quick Settings</Text>
+                        </View>
+
+                        <View style={styles.settingItem}>
+                            <View style={styles.settingLeft}>
+                                <Ionicons name="notifications-outline" size={22} color="#484555" />
+                                <Text style={styles.settingText}>Reminders</Text>
+                            </View>
+                            <Switch
+                                value={isNotificationEnabled}
+                                onValueChange={setIsNotificationEnabled}
+                                trackColor={{ false: '#D1D1D6', true: '#4317C6' }}
+                                thumbColor={'#FFF'}
+                            />
+                        </View>
+
+                        <TouchableOpacity style={styles.settingItem}>
+                            <View style={styles.settingLeft}>
+                                <MaterialCommunityIcons name="translate" size={22} color="#484555" />
+                                <Text style={styles.settingText}>Source Language</Text>
+                            </View>
+                            <View style={styles.settingRight}>
+                                <Text style={styles.settingValue}>Vietnamese</Text>
+                                <Ionicons name="chevron-forward" size={16} color="#484555" />
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.settingItem, styles.settingItemLast]}
+                            onPress={handleLogout}
+                        >
+                            <View style={styles.settingLeft}>
+                                <Feather name="log-out" size={20} color="#BA1A1A" />
+                                <Text style={[styles.settingText, styles.logoutText]}>Logout</Text>
+                            </View>
+                        </TouchableOpacity>
                     </View>
-                    <View style={styles.statItemDivider} />
-                    <View style={styles.statItem}>
-                        <Text style={styles.statNumber}>1.2k</Text>
-                        <Text style={styles.statLabel}>Điểm</Text>
-                    </View>
                 </View>
-
-                {/* Settings Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Cài đặt tài khoản</Text>
-                    
-                    <TouchableOpacity style={styles.menuItem}>
-                        <View style={[styles.menuIcon, { backgroundColor: '#E1E9FF' }]}>
-                            <Ionicons name="person" size={20} color="#4D77FF" />
-                        </View>
-                        <Text style={styles.menuText}>Thông tin cá nhân</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#B2B2B2" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.menuItem}>
-                        <View style={[styles.menuIcon, { backgroundColor: '#FFF0E6' }]}>
-                            <Ionicons name="notifications" size={20} color="#FF8A3D" />
-                        </View>
-                        <Text style={styles.menuText}>Thông báo</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#B2B2B2" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.menuItem}>
-                        <View style={[styles.menuIcon, { backgroundColor: '#E6FFF0' }]}>
-                            <Ionicons name="shield-checkmark" size={20} color="#2ECC71" />
-                        </View>
-                        <Text style={styles.menuText}>Bảo mật</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#B2B2B2" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* App Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Ứng dụng</Text>
-                    
-                    <TouchableOpacity style={styles.menuItem}>
-                        <View style={[styles.menuIcon, { backgroundColor: '#F3E8FF' }]}>
-                            <Ionicons name="help-circle" size={20} color="#A855F7" />
-                        </View>
-                        <Text style={styles.menuText}>Trung tâm trợ giúp</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#B2B2B2" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={handleLogout}>
-                        <View style={[styles.menuIcon, { backgroundColor: '#FFEBEB' }]}>
-                            <Ionicons name="log-out" size={20} color="#FF4D4D" />
-                        </View>
-                        <Text style={[styles.menuText, { color: '#FF4D4D' }]}>Đăng xuất</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#FF4D4D" />
-                    </TouchableOpacity>
-                </View>
-
-                <Text style={styles.versionText}>Phiên bản 1.0.2 (Build 2024)</Text>
-                <View style={{ height: 100 }} />
             </ScrollView>
+
+            {/* Floating Action Button */}
+            <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
+                <LinearGradient
+                    colors={['#7B61FF', '#A78BFA']}
+                    style={styles.fabGradient}
+                >
+                    <Ionicons name="camera" size={28} color="#FFF" />
+                </LinearGradient>
+            </TouchableOpacity>
         </SafeAreaView>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#FDF8FF',
-    },
-    header: {
-        alignItems: 'center',
-        paddingVertical: 30,
-    },
-    profileImageContainer: {
-        position: 'relative',
-        marginBottom: 15,
-    },
-    profileImage: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 3,
-        borderColor: '#FFF',
-    },
-    editBadge: {
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        backgroundColor: '#6C5CE7',
-        padding: 8,
-        borderRadius: 20,
-        borderWidth: 2,
-        borderColor: '#FFF',
-    },
-    userName: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#2D3436',
-    },
-    userEmail: {
-        fontSize: 14,
-        color: '#636E72',
-        marginTop: 4,
-    },
-    statsRow: {
-        flexDirection: 'row',
-        backgroundColor: '#FFF',
-        marginHorizontal: 20,
-        borderRadius: 20,
-        padding: 20,
-        justifyContent: 'space-around',
-        alignItems: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-    },
-    statItem: {
-        alignItems: 'center',
-    },
-    statNumber: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#2D3436',
-    },
-    statLabel: {
-        fontSize: 12,
-        color: '#636E72',
-        marginTop: 2,
-    },
-    statItemDivider: {
-        width: 1,
-        height: 30,
-        backgroundColor: '#F1F2F6',
-    },
-    section: {
-        marginTop: 30,
-        paddingHorizontal: 20,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#2D3436',
-        marginBottom: 15,
-        paddingLeft: 5,
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFF',
-        padding: 15,
-        borderRadius: 15,
-        marginBottom: 10,
-    },
-    menuIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 15,
-    },
-    menuText: {
-        flex: 1,
-        fontSize: 15,
-        fontWeight: '500',
-        color: '#2D3436',
-    },
-    versionText: {
-        textAlign: 'center',
-        color: '#B2B2B2',
-        fontSize: 12,
-        marginTop: 20,
-    }
-});

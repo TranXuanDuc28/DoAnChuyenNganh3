@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    View, 
-    Text, 
-    ScrollView, 
-    TouchableOpacity, 
-    Image, 
+import {
+    View,
+    Text,
+    ScrollView,
+    TouchableOpacity,
+    Image,
     SafeAreaView,
     StatusBar,
     ActivityIndicator
@@ -12,11 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/ExploreStyles';
 
-<<<<<<< HEAD
 import { API_BASE } from '../constants/Config';
-=======
-const API_BASE = "https://phrenologic-lindsy-abstractedly.ngrok-free.dev"; 
->>>>>>> NgoVanBao
 
 const TopicLessonsScreen = ({ navigation, route }) => {
     const { category_id, category_name } = route.params;
@@ -44,7 +40,7 @@ const TopicLessonsScreen = ({ navigation, route }) => {
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" />
-            
+
             {/* Header with Back Button */}
             <View style={[styles.topNav, { justifyContent: 'flex-start', gap: 16 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -53,7 +49,7 @@ const TopicLessonsScreen = ({ navigation, route }) => {
                 <Text style={styles.logoText}>{category_name}</Text>
             </View>
 
-            <ScrollView 
+            <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollViewContent}
             >
@@ -70,16 +66,16 @@ const TopicLessonsScreen = ({ navigation, route }) => {
                         <ActivityIndicator size="large" color="#4317C6" style={{ marginTop: 40 }} />
                     ) : lessons.length > 0 ? (
                         lessons.map((lesson) => (
-                            <TouchableOpacity 
-                                key={lesson.lesson_id} 
+                            <TouchableOpacity
+                                key={lesson.lesson_id}
                                 style={styles.lessonCard}
                                 onPress={() => navigation.navigate('LessonDetail', { lessonId: lesson.lesson_id })}
                             >
                                 <View style={styles.lessonCardTop}>
                                     <View style={styles.lessonImageContainer}>
-                                        <Image 
-                                            source={{ uri: lesson.thumbnail ? `${API_BASE}/static/${lesson.thumbnail}` : 'https://placehold.co/96x96' }} 
-                                            style={styles.lessonImage} 
+                                        <Image
+                                            source={{ uri: lesson.thumbnail ? `${API_BASE}/static/${lesson.thumbnail}` : 'https://placehold.co/96x96' }}
+                                            style={styles.lessonImage}
                                         />
                                     </View>
                                     <View style={styles.lessonInfo}>
@@ -111,7 +107,7 @@ const TopicLessonsScreen = ({ navigation, route }) => {
                                     <View style={[styles.progressBarFill, { width: `0%`, backgroundColor: '#4317C6' }]} />
                                 </View>
 
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={[styles.startButton, { backgroundColor: '#5B3CDD' }]}
                                     onPress={() => navigation.navigate('LessonDetail', { lessonId: lesson.lesson_id })}
                                 >

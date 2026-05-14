@@ -16,14 +16,16 @@ import { MaterialIcons, MaterialCommunityIcons, Feather, Entypo } from '@expo/ve
 import { authApi } from '../api/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { editProfileStyles as styles } from '../styles/EditProfileStyles';
+import * as ImagePicker from 'expo-image-picker';
 
-const PROFILE_IMG = "https://lh3.googleusercontent.com/aida-public/AB6AXuDLR5Q1ZUoZUjKWqWssCi_oWaTvd-EVXVSr3Qps_OyKVgo_eOiA1KJ9nZk1OcERSfLThgVYxGQ4aYjDK-JVL-ZllghX4RwKRjhpfXIJYkn6EjqAnU1LTos5SqlhAWgWNPqSrc2PNhASCjFjgOPgUiYEWemipXVXypsQCkd5QknTCYHoubVId052UTrvx7T_ILYRBPj3hNnw0n3sjLij4p-idQdQSXc2rfSpvzkwryXuOILN9rSRb6RW4xc_PrhUQrAgkGZOBxAvfTi_";
+const DEFAULT_AVATAR = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80";
 
 export default function EditProfileScreen({ navigation }) {
-    const [fullName, setFullName] = useState('Alex Chen');
-    const [email, setEmail] = useState('alex.chen@glosalia.ai');
-    const [phone, setPhone] = useState('+1 (555) 000-1234');
+    const [fullName, setFullName] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
     const [autoStart, setAutoStart] = useState(true);
+    const [avatar, setAvatar] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
 
@@ -34,9 +36,16 @@ export default function EditProfileScreen({ navigation }) {
     const fetchProfileData = async () => {
         setIsLoading(true);
         try {
-            const userId = await AsyncStorage.getItem('user_id');
-            if (!userId) {
+            const userDataStr = await AsyncStorage.getItem('userData');
+            if (!userDataStr) {
                 Alert.alert('Error', 'User not logged in');
+                return;
+            }
+            const userData = JSON.parse(userDataStr);
+            const userId = userData.id || userData.user_id;
+            
+            if (!userId) {
+                Alert.alert('Error', 'User ID not found');
                 return;
             }
 
@@ -47,6 +56,7 @@ export default function EditProfileScreen({ navigation }) {
                 setEmail(user.email || '');
                 setPhone(user.phone || '');
                 setAutoStart(user.auto_start);
+                setAvatar(user.avatar || null);
             }
         } catch (error) {
             console.error('Error fetching profile:', error);
@@ -56,10 +66,24 @@ export default function EditProfileScreen({ navigation }) {
         }
     };
 
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+            base64: true,
+        });
+
+        if (!result.canceled) {
+            const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
+            setAvatar(base64Image);
+        }
+    };
+
     const handleLogout = async () => {
         await AsyncStorage.clear();
         setShowMenu(false);
-        // Reset navigation stack to Login screen
         navigation.reset({
             index: 0,
             routes: [{ name: 'Login' }],
@@ -69,17 +93,33 @@ export default function EditProfileScreen({ navigation }) {
     const handleSave = async () => {
         setIsLoading(true);
         try {
-            const userId = await AsyncStorage.getItem('user_id');
+            const userDataStr = await AsyncStorage.getItem('userData');
+            if (!userDataStr) throw new Error("User not logged in");
+            const userData = JSON.parse(userDataStr);
+            const userId = userData.id || userData.user_id;
+            
             if (!userId) throw new Error("User ID not found");
             
             const response = await authApi.editProfile(userId, {
                 full_name: fullName,
                 email: email,
                 phone: phone,
-                auto_start: autoStart
+                auto_start: autoStart,
+                avatar: avatar
             });
 
             if (response.data.status === 'success') {
+                // Update local storage
+                const updatedUser = { 
+                    ...userData, 
+                    name: fullName, 
+                    email: email, 
+                    phone: phone, 
+                    auto_start: autoStart,
+                    avatar: avatar
+                };
+                await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+
                 Alert.alert('Success', 'Profile updated successfully!', [
                     { text: 'OK', onPress: () => navigation.goBack() }
                 ]);
@@ -99,13 +139,12 @@ export default function EditProfileScreen({ navigation }) {
             <StatusBar barStyle="dark-content" backgroundColor="#fdf8ff" />
             
             <View style={styles.container}>
-                {/* Header */}
                 <View style={styles.header}>
                     <View style={styles.headerLeft}>
                         <TouchableOpacity onPress={() => navigation.goBack()}>
                             <MaterialIcons name="arrow-back" size={28} color="#4317c6" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>SignLink</Text>
+                        <Text style={styles.headerTitle}>Lumina Sign</Text>
                     </View>
                     <View style={{ position: 'relative' }}>
                         <TouchableOpacity onPress={() => setShowMenu(!showMenu)}>
@@ -128,12 +167,18 @@ export default function EditProfileScreen({ navigation }) {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Avatar Section */}
                     <View style={styles.avatarSection}>
-                        <TouchableOpacity style={styles.avatarContainer} activeOpacity={0.9}>
-                            <Image source={{ uri: PROFILE_IMG }} style={styles.avatar} />
+                        <TouchableOpacity 
+                            style={styles.avatarContainer} 
+                            activeOpacity={0.9}
+                            onPress={pickImage}
+                        >
+                            <Image 
+                                source={{ uri: avatar || DEFAULT_AVATAR }} 
+                                style={styles.avatar} 
+                            />
                             <View style={styles.editBadge}>
-                                <MaterialIcons name="edit" size={20} color="#fff" />
+                                <MaterialIcons name="camera-alt" size={20} color="#fff" />
                             </View>
                         </TouchableOpacity>
 
@@ -145,7 +190,6 @@ export default function EditProfileScreen({ navigation }) {
                         </View>
                     </View>
 
-                    {/* Form */}
                     <View style={styles.formGroup}>
                         <Text style={styles.label}>Full Name</Text>
                         <View style={styles.inputWrapper}>
@@ -153,6 +197,7 @@ export default function EditProfileScreen({ navigation }) {
                                 style={styles.textInput}
                                 value={fullName}
                                 onChangeText={setFullName}
+                                placeholder="Your full name"
                             />
                             <Feather name="user" size={22} color="#c9c4d8" style={styles.inputIconRight} />
                         </View>
@@ -167,6 +212,7 @@ export default function EditProfileScreen({ navigation }) {
                                 onChangeText={setEmail}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
+                                placeholder="Email address"
                             />
                             <Feather name="mail" size={22} color="#c9c4d8" style={styles.inputIconRight} />
                         </View>
@@ -180,12 +226,12 @@ export default function EditProfileScreen({ navigation }) {
                                 value={phone}
                                 onChangeText={setPhone}
                                 keyboardType="phone-pad"
+                                placeholder="Phone number"
                             />
                             <Feather name="phone" size={22} color="#c9c4d8" style={styles.inputIconRight} />
                         </View>
                     </View>
 
-                    {/* Preferences */}
                     <View style={styles.prefsCard}>
                         <View style={styles.prefsTextContainer}>
                             <Text style={styles.prefsTitle}>Real-time Translation Auto-start</Text>
@@ -201,7 +247,6 @@ export default function EditProfileScreen({ navigation }) {
                         />
                     </View>
 
-                    {/* Actions */}
                     <View style={styles.actionSection}>
                         <TouchableOpacity
                             style={styles.saveButton}
@@ -230,3 +275,4 @@ export default function EditProfileScreen({ navigation }) {
         </SafeAreaView>
     );
 }
+

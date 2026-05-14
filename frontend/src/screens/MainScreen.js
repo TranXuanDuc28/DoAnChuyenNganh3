@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Text, View, ActivityIndicator, TouchableOpacity, Image, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/AppStyles';
 import { API_BASE } from '../constants/Config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 // --- ĐỊA CHỈ SERVER ---
 // Tự động chuyển đổi http/https sang ws/wss
@@ -21,7 +23,33 @@ export default function MainScreen() {
     const [targetLang, setTargetLang] = useState('vi'); // 'vi' hoặc 'en'
     const [isTranslating, setIsTranslating] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [user, setUser] = useState(null);
     const ws = useRef(null);
+
+    const fetchUserData = async () => {
+        try {
+            const token = await AsyncStorage.getItem('userToken');
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE}/api/v1/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setUser(data);
+            }
+        } catch (error) {
+            console.error("Error fetching user data:", error);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchUserData();
+        }, [])
+    );
 
     // --- Khởi tạo WebSocket ---
     useEffect(() => {
@@ -216,10 +244,14 @@ export default function MainScreen() {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <View style={styles.profilePic}>
-                    <Ionicons name="person-circle" size={40} color="#6C5CE7" />
+                <View style={styles.profileSection}>
+                    <Image
+                        source={{ uri: user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80' }}
+                        style={styles.profilePic}
+                    />
+                    {/* <Text style={styles.userName}>{user?.name || 'Guest'}</Text> */}
                 </View>
-                <Text style={styles.appTitle}>Lumina Sign</Text>
+
 
                 {/* Language Toggle */}
                 <View style={styles.langToggle}>
@@ -285,7 +317,7 @@ export default function MainScreen() {
                 {/* Connection Error Overlay */}
                 {!wsConnected && (
                     <View style={styles.errorOverlay}>
-                        <Text style={styles.errorText}>Mất kết nối server...</Text>
+                        <Text style={styles.errorText}>Server connection lost...</Text>
                     </View>
                 )}
             </View>
@@ -301,12 +333,12 @@ export default function MainScreen() {
                     {isUploading ? (
                         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                             <ActivityIndicator size="large" color="#6C5CE7" />
-                            <Text style={[styles.statusText, { marginTop: 10 }]}>Đang phân tích video...</Text>
+                            <Text style={[styles.statusText, { marginTop: 10 }]}>Analyzing video...</Text>
                         </View>
                     ) : (
                         <>
                             <Text style={styles.translationText}>
-                                {translation || (sentence.length > 0 ? sentence.join(' ') : 'Bắt đầu ký hiệu để dịch...')}
+                                {translation || (sentence.length > 0 ? sentence.join(' ') : 'Start signing to translate...')}
                             </Text>
                             <TouchableOpacity
                                 style={styles.ttsBtn}

@@ -1,61 +1,31 @@
 import React, { useState, useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerRootComponent } from 'expo';
-import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import ExploreScreen from './src/screens/ExploreScreen';
-import LessonDetailScreen from './src/screens/LessonDetailScreen';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
+// Screens
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
-import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
-import EditProfileScreen from './src/screens/EditProfileScreen';
 import MainTabNavigator from './src/screens/MainTabNavigator';
-
-const Stack = createNativeStackNavigator();
+import LessonDetailScreen from './src/screens/LessonDetailScreen';
 import PracticeDetailScreen from './src/screens/PracticeDetailScreen';
 import TopicLessonsScreen from './src/screens/TopicLessonsScreen';
-import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
-import HomeScreen from './src/screens/HomeScreen';
 import QuizScreen from './src/screens/QuizScreen';
 import QuizResultScreen from './src/screens/QuizResultScreen';
-import ProfileScreen from './src/screens/ProfileScreen'; // Sẽ tạo file này
-import CustomTabBar from './src/components/CustomTabBar';
 import RecognitionHistoryScreen from './src/screens/RecognitionHistoryScreen';
-import LearningProgressScreen from './src/screens/LearningProgressScreen';
 import LearningStreakScreen from './src/screens/LearningStreakScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
 
-const Tab = createBottomTabNavigator();
-
-// Navigator cho các tab chính
-function MainTabNavigator() {
-  return (
-    <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
-      <Tab.Screen name="Trans" component={MainScreen} options={{ title: 'Trans' }} />
-      <Tab.Screen name="Explore" component={ExploreScreen} options={{ title: 'Learn' }} />
-      <Tab.Screen name="Stats" component={LearningProgressScreen} options={{ title: 'Stats' }} />
-      <Tab.Screen name="Profile" component={HomeScreen} options={{ title: 'Profile' }} />
-    </Tab.Navigator>
-  );
-}
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState(null);
 
   useEffect(() => {
-    // Kiểm tra token khi khởi động app
     const bootstrapAsync = async () => {
       let token;
       try {
@@ -71,7 +41,6 @@ export default function App() {
   }, []);
 
   if (isLoading) {
-    // Màn hình chờ khi đang kiểm tra token
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FDF8FF' }}>
         <ActivityIndicator size="large" color="#6C5CE7" />
@@ -104,6 +73,7 @@ export default function App() {
           <Stack.Screen name="QuizResult" component={QuizResultScreen} />
           <Stack.Screen name="RecognitionHistory" component={RecognitionHistoryScreen} />
           <Stack.Screen name="LearningStreak" component={LearningStreakScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
