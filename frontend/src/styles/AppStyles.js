@@ -99,18 +99,20 @@ export const styles = StyleSheet.create({
     // --- Result Card (Glassmorphism) ---
     resultCard: {
         position: 'absolute',
-        bottom: 20,
-        left: 15,
-        right: 15,
-        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        bottom: 140, // Đưa lên trên Bottom Tab
+        left: 20,
+        right: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 25,
         padding: 20,
-        zIndex: 30,
+        height: 160, // SỬ DỤNG CHIỀU CAO CỐ ĐỊNH (FIXED HEIGHT)
+        zIndex: 100,
         elevation: 10,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.1,
         shadowRadius: 20,
+        overflow: 'hidden',
     },
     liveStatus: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
     statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#6C5CE7', marginRight: 8 },

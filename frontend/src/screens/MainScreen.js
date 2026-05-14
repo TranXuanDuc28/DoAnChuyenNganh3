@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Text, View, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { Text, View, ActivityIndicator, TouchableOpacity, Image, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/AppStyles';
+import { API_BASE } from '../constants/Config';
 
 // --- ĐỊA CHỈ SERVER ---
-const SERVER_IP = "192.168.1.17"; 
-const WS_URL = `ws://${SERVER_IP}:8000/ws/json`;
+// Tự động chuyển đổi http/https sang ws/wss
+const WS_URL = API_BASE.replace('http', 'ws') + '/api/v1/recognition/ws';
 
 export default function MainScreen() {
     const [prediction, setPrediction] = useState('Wait...');
@@ -18,6 +20,7 @@ export default function MainScreen() {
     const [wsConnected, setWsConnected] = useState(false);
     const [targetLang, setTargetLang] = useState('vi'); // 'vi' hoặc 'en'
     const [isTranslating, setIsTranslating] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const ws = useRef(null);
 
     // --- Khởi tạo WebSocket ---
@@ -28,10 +31,12 @@ export default function MainScreen() {
             ws.current.onmessage = (e) => {
                 try {
                     const data = JSON.parse(e.data);
-                    if (data.prediction) setPrediction(data.prediction);
+                    // Luôn cập nhật trạng thái, không dùng IF để tránh bỏ sót chuỗi rỗng
+                    if (data.prediction !== undefined) setPrediction(data.prediction);
                     if (data.confidence !== undefined) setConfidence(data.confidence);
-                    if (data.sentence) setSentence(data.sentence);
-                    if (data.translation) setTranslation(data.translation);
+                    if (data.sentence !== undefined) setSentence(data.sentence);
+                    if (data.translation !== undefined) setTranslation(data.translation);
+                    
                     if (data.status === "translating") {
                         setIsTranslating(true);
                     } else {
@@ -51,11 +56,11 @@ export default function MainScreen() {
     // --- Hàm xử lý đọc văn bản ---
     const speakText = (text) => {
         if (!text || text.includes("...")) return;
-        
+
         Speech.speak(text, {
             language: targetLang === 'vi' ? 'vi-VN' : 'en-US',
             pitch: 1.0,
-            rate: 0.9,
+            rate: 1.0,
         });
     };
 
@@ -69,6 +74,68 @@ export default function MainScreen() {
     const sendCommand = (cmd, extraData = {}) => {
         if (ws.current && wsConnected) {
             ws.current.send(JSON.stringify({ command: cmd, ...extraData }));
+            
+            // Xóa ngay lập tức ở frontend để tạo cảm giác mượt mà
+            if (cmd === "clear_all") {
+                setSentence([]);
+                setTranslation("");
+                setPrediction("READY");
+            }
+        }
+    };
+
+    // --- NEW: Upload Video Functions ---
+    const pickVideo = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['videos'],
+            allowsEditing: true,
+            quality: 0, // Nén tối đa để gửi cho nhanh
+            videoExportPreset: ImagePicker.VideoExportPreset.LowQuality, // Ép iPhone nén video xuống mức thấp nhất
+        });
+
+        if (!result.canceled) {
+            handleUploadVideo(result.assets[0].uri);
+        }
+    };
+
+    const handleUploadVideo = async (videoUri) => {
+        setIsUploading(true);
+        setTranslation("Đang phân tích video...");
+        
+        try {
+            const formData = new FormData();
+            formData.append('file', {
+                uri: videoUri,
+                name: 'video.mp4',
+                type: 'video/mp4',
+            });
+            formData.append('lang', targetLang);
+
+            const response = await fetch(`${API_BASE}/api/v1/recognition/upload-video`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            const data = await response.json();
+            setIsUploading(false); // Tắt vòng xoay ngay lập tức
+
+            if (data.success) {
+                setSentence(data.words);
+                setTranslation(data.translation);
+                // Hiện thông báo trực tiếp để chắc chắn bạn thấy kết quả
+                Alert.alert("Dịch thành công", data.translation);
+            } else {
+                setTranslation("");
+                Alert.alert("Lỗi", data.error || "Lỗi xử lý video.");
+            }
+        } catch (error) {
+            console.error(error);
+            setIsUploading(false);
+            setTranslation("");
+            Alert.alert("Lỗi", "Lỗi kết nối server.");
         }
     };
 
@@ -153,16 +220,16 @@ export default function MainScreen() {
                     <Ionicons name="person-circle" size={40} color="#6C5CE7" />
                 </View>
                 <Text style={styles.appTitle}>Lumina Sign</Text>
-                
+
                 {/* Language Toggle */}
                 <View style={styles.langToggle}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={[styles.langBtn, targetLang === 'vi' && styles.langBtnActive]}
                         onPress={() => setTargetLang('vi')}
                     >
                         <Text style={[styles.langText, targetLang === 'vi' && styles.langTextActive]}>VI</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={[styles.langBtn, targetLang === 'en' && styles.langBtnActive]}
                         onPress={() => setTargetLang('en')}
                     >
@@ -189,7 +256,7 @@ export default function MainScreen() {
                     scrollEnabled={false}
                     mediaCapturePermissionGrantType="grant"
                 />
-                
+
                 {/* Focus Frame Overlay */}
                 <View style={styles.focusFrame}>
                     <View style={styles.cornerTL} />
@@ -201,11 +268,14 @@ export default function MainScreen() {
                     <TouchableOpacity style={styles.actionBtn} onPress={() => sendCommand("clear_all")}>
                         <Ionicons name="refresh-outline" size={22} color="#6C5CE7" />
                     </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionBtn} onPress={pickVideo}>
+                        <Ionicons name="cloud-upload-outline" size={22} color="#6C5CE7" />
+                    </TouchableOpacity>
                     <TouchableOpacity style={styles.actionBtn}>
                         <Ionicons name="camera-reverse-outline" size={22} color="#6C5CE7" />
                     </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={[styles.actionBtn, styles.actionBtnPrimary]} 
+                    <TouchableOpacity
+                        style={[styles.actionBtn, styles.actionBtnPrimary]}
                         onPress={() => sendCommand("translate", { lang: targetLang })}
                     >
                         <Ionicons name="videocam" size={22} color="#FFF" />
@@ -218,35 +288,44 @@ export default function MainScreen() {
                         <Text style={styles.errorText}>Mất kết nối server...</Text>
                     </View>
                 )}
+            </View>
 
-                {/* Result Card (Floating) */}
-                <View style={styles.resultCard}>
-                    <View style={styles.liveStatus}>
-                        <View style={styles.statusDot} />
-                        <Text style={styles.statusText}>LIVE TRANSLATION</Text>
-                    </View>
-                    
-                    <View style={styles.translationRow}>
-                        <Text style={styles.translationText}>
-                            {translation || (sentence.length > 0 ? sentence.join(' ') : 'Bắt đầu ký hiệu để dịch...')}
-                        </Text>
-                        <TouchableOpacity 
-                            style={styles.ttsBtn}
-                            onPress={() => speakText(translation || (sentence.length > 0 ? sentence.join(' ') : ''))}
-                        >
-                            <Ionicons name="volume-medium" size={24} color="#6C5CE7" />
-                        </TouchableOpacity>
-                    </View>
+            {/* Result Card (Floating Outside Camera) */}
+            <View style={styles.resultCard}>
+                <View style={styles.liveStatus}>
+                    <View style={styles.statusDot} />
+                    <Text style={styles.statusText}>LIVE TRANSLATION</Text>
+                </View>
 
-                    {/* Waveform Visualizer Placeholder */}
-                    <View style={styles.waveformContainer}>
-                        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                            <View 
-                                key={i} 
-                                style={[styles.waveBar, { height: Math.random() * 15 + 5, opacity: isTranslating ? 1 : 0.4 }]} 
-                            />
-                        ))}
-                    </View>
+                <View style={styles.translationRow}>
+                    {isUploading ? (
+                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                            <ActivityIndicator size="large" color="#6C5CE7" />
+                            <Text style={[styles.statusText, { marginTop: 10 }]}>Đang phân tích video...</Text>
+                        </View>
+                    ) : (
+                        <>
+                            <Text style={styles.translationText}>
+                                {translation || (sentence.length > 0 ? sentence.join(' ') : 'Bắt đầu ký hiệu để dịch...')}
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.ttsBtn}
+                                onPress={() => speakText(translation || (sentence.length > 0 ? sentence.join(' ') : ''))}
+                            >
+                                <Ionicons name="volume-medium" size={24} color="#6C5CE7" />
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
+
+                {/* Waveform Visualizer (Fixed heights to prevent jitter) */}
+                <View style={styles.waveformContainer}>
+                    {[10, 20, 15, 25, 18, 12, 15].map((h, i) => (
+                        <View
+                            key={i}
+                            style={[styles.waveBar, { height: h, opacity: isTranslating ? 1 : 0.4 }]}
+                        />
+                    ))}
                 </View>
             </View>
 
@@ -255,7 +334,7 @@ export default function MainScreen() {
                 <TouchableOpacity style={[styles.tabItem, styles.tabActive]}>
                     <Ionicons name="home" size={20} color="#FFF" />
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity style={styles.tabItem}>
                     <Ionicons name="eye-outline" size={20} color="#636E72" />
                     <Text style={styles.tabText}>Trans</Text>

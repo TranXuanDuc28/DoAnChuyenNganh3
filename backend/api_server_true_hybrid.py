@@ -7,18 +7,16 @@ import time
 import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import google.generativeai as genai
-from dotenv import load_dotenv
+from database import db
+from routes import router as api_router
+
+from contextlib import asynccontextmanager
 
 # --- Cấu hình AI Dịch thuật ---
-load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-if not GEMINI_API_KEY:
-    print("[CẢNH BÁO] Không tìm thấy GEMINI_API_KEY trong file .env!")
-else:
-    genai.configure(api_key=GEMINI_API_KEY)
-    
+GEMINI_API_KEY = "AIzaSyCjBgv4qe2du1qrdNAlWbFpaZFX530SN6o"
+genai.configure(api_key=GEMINI_API_KEY)
 generative_model = genai.GenerativeModel('gemini-2.5-flash')
 
 # --- Đường dẫn ---
@@ -75,8 +73,16 @@ def parse_json_landmarks(data):
     if rh.shape != (21, 3): rh = np.zeros((21, 3))
     return np.concatenate([pose, lh, rh], axis=0)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    db.init_db()
+    yield
+    # Shutdown
+    pass
+
 # --- FastAPI Setup ---
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -86,13 +92,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-async def translate_gloss(gloss_list, lang="vi"):
+app.include_router(api_router)
+
+# Để có thể xem được ảnh thumbnail và video từ thư mục archive
+app.mount("/static", StaticFiles(directory="archive"), name="static")
+
+async def translate_gloss(gloss_list):
     if not gloss_list: return ""
     gloss_text = ", ".join(gloss_list)
-    if lang == "en":
-        prompt = f"These are sign language glosses: {gloss_text}. Translate them into a natural English sentence. Only return the translated sentence."
-    else:
-        prompt = f"Đây là các từ khóa ký hiệu: {gloss_text}. Hãy dịch chúng thành một câu tiếng Việt hoàn chỉnh, tự nhiên. Chỉ trả về câu đã dịch."
+    prompt = (
+        f"Tôi có một chuỗi các từ khóa ngôn ngữ ký hiệu (Gloss): [{gloss_text}]. "
+        "Hãy chuyển chúng thành một câu Tiếng Việt và một câu Tiếng Anh giao tiếp hoàn chỉnh. "
+        "Kết quả trả về theo định dạng: 'VI: [câu tiếng Việt] / EN: [câu tiếng Anh]'. "
+        "Không giải thích gì thêm."
+    )
     try:
         response = await asyncio.to_thread(generative_model.generate_content, prompt)
         return response.text.replace('\n', ' ').strip()
@@ -113,7 +126,6 @@ async def websocket_json_endpoint(websocket: WebSocket):
     current_prediction = "READY"
     confidence = 0.0
     
-    global translated_sentence, is_translating
     translated_sentence = ""
     is_translating = False
 
@@ -126,20 +138,18 @@ async def websocket_json_endpoint(websocket: WebSocket):
                 cmd = data["command"]
                 if cmd == "delete_last" and len(sentence_buffer) > 0:
                     sentence_buffer.pop()
-                    last_added_word = "" 
+                    last_added_word = "" # Reset để cho phép múa lại từ vừa xóa
                 elif cmd == "clear_all":
                     sentence_buffer.clear()
                     translated_sentence = ""
                     last_added_word = ""
-                elif cmd == "translate":
-                    target_lang = data.get("lang", "vi")
-                    if not is_translating and len(sentence_buffer) > 0:
-                        is_translating = True
-                        # Gửi trạng thái đang dịch về app ngay lập tức
-                        await websocket.send_json({"status": "translating", "sentence": sentence_buffer})
-                        translated_sentence = await translate_gloss(sentence_buffer.copy(), target_lang)
-                        is_translating = False
+                elif cmd == "translate" and not is_translating:
+                    is_translating = True
+                    await websocket.send_json({"status": "translating", "sentence": sentence_buffer})
+                    translated_sentence = await translate_gloss(sentence_buffer.copy())
+                    is_translating = False
                 
+                # Trả về trạng thái mới nhất cho App
                 await websocket.send_json({
                     "prediction": current_prediction,
                     "confidence": round(confidence, 2),
@@ -192,6 +202,12 @@ async def websocket_json_endpoint(websocket: WebSocket):
                             if current_prediction != "Unknown" and current_prediction != last_added_word:
                                 sentence_buffer.append(current_prediction)
                                 last_added_word = current_prediction
+                                
+                                # Log to DB (History)
+                                db.execute_query(
+                                    "INSERT INTO recognition_history (user_id, recognized_text, confidence) VALUES (%s, %s, %s)",
+                                    (1, current_prediction, round(confidence, 2))
+                                )
 
             # Luôn gửi cập nhật UI
             await websocket.send_json({
@@ -208,4 +224,5 @@ async def websocket_json_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # forward_allow_ips='*' giúp nhận diện đúng IP qua ngrok
+    uvicorn.run(app, host="0.0.0.0", port=8000, forwarded_allow_ips='*')

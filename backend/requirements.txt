@@ -1,3 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+pydantic
+pydantic-settings
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
 mediapipe
 opencv-python
 pandas
@@ -6,5 +15,7 @@ tqdm
 torch
 scikit-learn
 google-generativeai
-python-dotenv
 pyttsx3
+jinja2
+mysql-connector-python
+email-validator
