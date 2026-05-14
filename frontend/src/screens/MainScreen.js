@@ -36,7 +36,7 @@ export default function MainScreen() {
                     if (data.confidence !== undefined) setConfidence(data.confidence);
                     if (data.sentence !== undefined) setSentence(data.sentence);
                     if (data.translation !== undefined) setTranslation(data.translation);
-                    
+
                     if (data.status === "translating") {
                         setIsTranslating(true);
                     } else {
@@ -74,7 +74,7 @@ export default function MainScreen() {
     const sendCommand = (cmd, extraData = {}) => {
         if (ws.current && wsConnected) {
             ws.current.send(JSON.stringify({ command: cmd, ...extraData }));
-            
+
             // Xóa ngay lập tức ở frontend để tạo cảm giác mượt mà
             if (cmd === "clear_all") {
                 setSentence([]);
@@ -101,7 +101,7 @@ export default function MainScreen() {
     const handleUploadVideo = async (videoUri) => {
         setIsUploading(true);
         setTranslation("Đang phân tích video...");
-        
+
         try {
             const formData = new FormData();
             formData.append('file', {

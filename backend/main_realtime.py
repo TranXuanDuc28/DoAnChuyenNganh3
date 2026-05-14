@@ -9,6 +9,12 @@ import argparse
 import threading
 import time
 import datetime
+import io
+
+# Fix encoding issue on Windows
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 try:
     import pyttsx3
 except ImportError:

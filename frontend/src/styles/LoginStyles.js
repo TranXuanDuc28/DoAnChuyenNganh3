@@ -2,190 +2,235 @@ import { StyleSheet, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
-    container: {
+export const loginStyles = StyleSheet.create({
+    backgroundImage: {
         flex: 1,
-        backgroundColor: '#FDF8FF',
+        width: width,
+        height: height,
     },
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(253, 248, 255, 0.85)',
+    },
+    safeArea: {
+        flex: 1,
+    },
+
+    // --- Header ---
     header: {
-        height: 64,
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 24,
-        paddingTop: 40,
+        height: 80,
+        gap: 12,
+    },
+    headerIconBox: {
+        width: 48,
+        height: 48,
+        borderRadius: 14,
+        backgroundColor: '#4317c6',
+        alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'transparent',
+        shadowColor: '#4317c6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 6,
     },
-    logoText: {
-        color: '#4317C6',
-        fontSize: 24,
-        fontFamily: 'Space Grotesk',
-        fontWeight: '700',
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '900',
+        color: '#4317c6',
+        letterSpacing: -1.5,
     },
-    content: {
+
+    // --- Main content ---
+    keyboardView: {
         flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
         justifyContent: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: 20,
+        paddingVertical: 40,
     },
-    blurCircle1: {
-        position: 'absolute',
-        width: 232,
-        height: 232,
-        right: -80,
-        top: -40,
-        backgroundColor: 'rgba(116, 89, 247, 0.15)',
-        borderRadius: 116,
-    },
-    blurCircle2: {
-        position: 'absolute',
-        width: 200,
-        height: 200,
-        left: -60,
-        bottom: 80,
-        backgroundColor: 'rgba(95, 82, 147, 0.15)',
-        borderRadius: 100,
-    },
+
+    // --- Card ---
     card: {
-        width: '100%',
-        padding: 32,
-        backgroundColor: 'rgba(253, 248, 255, 0.75)',
-        borderRadius: 32,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 40,
+        paddingHorizontal: 30,
+        paddingVertical: 50,
         borderWidth: 1,
         borderColor: 'rgba(201, 196, 216, 0.4)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
-        shadowRadius: 20,
-        elevation: 10,
+        shadowColor: '#4317c6',
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.15,
+        shadowRadius: 40,
+        elevation: 20,
+        width: '100%',
     },
-    title: {
-        fontSize: 32,
-        fontFamily: 'Space Grotesk',
-        fontWeight: '700',
-        color: '#1C1A24',
-        marginBottom: 8,
-        lineHeight: 40,
+
+    // --- Welcome ---
+    welcomeSection: {
+        marginBottom: 40,
     },
-    subtitle: {
-        fontSize: 14,
-        fontFamily: 'Lexend',
+    welcomeTitle: {
+        fontSize: 42,
+        fontWeight: '800',
+        color: '#1c1a24',
+        letterSpacing: -1.8,
+        marginBottom: 10,
+    },
+    welcomeSubtitle: {
+        fontSize: 18,
         color: '#484555',
-        lineHeight: 22,
-        marginBottom: 32,
+        lineHeight: 28,
     },
-    inputGroup: {
-        marginBottom: 20,
-        alignSelf: 'stretch',
+
+    // --- Form ---
+    formGroup: {
+        marginBottom: 28,
     },
     labelRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 8,
+        alignItems: 'center',
+        marginBottom: 12,
+        paddingHorizontal: 6,
     },
     label: {
-        fontSize: 14,
-        fontFamily: 'Lexend',
-        fontWeight: '600',
+        fontSize: 16,
+        fontWeight: '700',
         color: '#484555',
+        letterSpacing: 0.4,
     },
     forgotText: {
-        fontSize: 14,
-        fontFamily: 'Lexend',
-        fontWeight: '600',
-        color: '#4317C6',
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#4317c6',
     },
     inputWrapper: {
-        height: 54,
-        backgroundColor: '#F7F1FF',
-        borderRadius: 14,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        borderWidth: 1,
-        borderColor: '#C9C4D8',
+        backgroundColor: '#fdf8ff',
+        borderRadius: 22,
+        borderWidth: 1.5,
+        borderColor: '#c9c4d8',
+        height: 68,
+        paddingHorizontal: 22,
     },
-    inputIcon: {
-        marginRight: 12,
+    inputWrapperFocused: {
+        borderColor: '#4317c6',
+        borderWidth: 2,
+        backgroundColor: '#fff',
+        shadowColor: '#4317c6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 5,
     },
-    input: {
+    inputIconLeft: {
+        marginRight: 16,
+    },
+    textInput: {
         flex: 1,
-        fontSize: 16,
-        fontFamily: 'Lexend',
-        color: '#1C1A24',
+        fontSize: 18,
+        color: '#1c1a24',
+        paddingVertical: 0,
     },
-    signInButton: {
-        height: 56,
-        backgroundColor: '#4317C6',
-        borderRadius: 28,
+    eyeButton: {
+        padding: 8,
+    },
+
+    // --- Sign In Button ---
+    submitButton: {
+        height: 68,
+        backgroundColor: '#4317c6',
+        borderRadius: 34,
+        alignItems: 'center',
         justifyContent: 'center',
-        alignItems: 'center',
-        flexDirection: 'row',
-        marginTop: 12,
-        shadowColor: '#4317C6',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 15,
-        elevation: 8,
-    },
-    signInText: {
-        color: 'white',
-        fontSize: 16,
-        fontFamily: 'Lexend',
-        fontWeight: '600',
-        marginRight: 8,
-    },
-    dividerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 28,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#D9D5E4',
-    },
-    dividerText: {
-        paddingHorizontal: 16,
-        fontSize: 11,
-        fontFamily: 'Lexend',
-        fontWeight: '600',
-        color: '#797587',
-        textTransform: 'uppercase',
-    },
-    socialRow: {
         flexDirection: 'row',
         gap: 12,
+        marginTop: 12,
+        shadowColor: '#4317c6',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.4,
+        shadowRadius: 20,
+        elevation: 12,
+    },
+    submitText: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#ffffff',
+        letterSpacing: 0.8,
+    },
+
+    // --- Divider ---
+    dividerContainer: {
+        marginVertical: 45,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    dividerLine: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: 1.5,
+        backgroundColor: '#c9c4d8',
+    },
+    dividerTextWrap: {
+        backgroundColor: 'rgba(255, 255, 255, 1)',
+        paddingHorizontal: 24,
+    },
+    dividerText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#797587',
+        letterSpacing: 2,
+    },
+
+    // --- Social ---
+    socialRow: {
+        flexDirection: 'row',
+        gap: 20,
     },
     socialButton: {
         flex: 1,
-        height: 52,
-        backgroundColor: '#FDF8FF',
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: '#C9C4D8',
+        height: 64,
         flexDirection: 'row',
-        justifyContent: 'center',
         alignItems: 'center',
-        gap: 8,
+        justifyContent: 'center',
+        gap: 12,
+        borderWidth: 1.5,
+        borderColor: '#c9c4d8',
+        borderRadius: 22,
+        backgroundColor: '#ffffff',
     },
     socialText: {
-        fontSize: 14,
-        fontFamily: 'Lexend',
-        fontWeight: '600',
+        fontSize: 17,
+        fontWeight: '700',
         color: '#484555',
     },
-    footer: {
+
+    // --- Footer ---
+    footerSection: {
+        marginTop: 45,
+        alignItems: 'center',
+    },
+    footerRow: {
         flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: 32,
+        alignItems: 'center',
     },
     footerText: {
-        fontSize: 14,
-        fontFamily: 'Lexend',
+        fontSize: 17,
         color: '#484555',
     },
     footerLink: {
-        fontSize: 14,
-        fontFamily: 'Lexend',
-        fontWeight: '600',
-        color: '#4317C6',
-    }
+        fontSize: 17,
+        fontWeight: '800',
+        color: '#4317c6',
+        marginLeft: 8,
+        textDecorationLine: 'underline',
+    },
 });
