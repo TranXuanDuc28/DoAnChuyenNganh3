@@ -4,6 +4,7 @@
 training/videos/
 training/keypoints/
 *.npy
+*.zip
 
 # 2. Bỏ qua môi trường ảo và thư viện
 node_modules/

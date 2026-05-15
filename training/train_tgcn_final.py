@@ -171,20 +171,43 @@ def train():
         print("Lỗi: Không nạp được mẫu nào. Kiểm tra thư mục keypoints/ hoặc file CSV.")
         return
         
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
     
     # 2. Setup Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = GCN_muti_att(input_feature=NUM_SAMPLES*2, hidden_feature=HIDDEN_SIZE, 
                          num_class=num_classes, p_dropout=0.3, num_stage=NUM_STAGES)
+    
+    # --- TỰ ĐỘNG NẠP MODEL CŨ ĐỂ TRAIN TIẾP (RESUME) ---
+    MODEL_PATH = 'best_tgcn_model_FINAL.pth'
+    if os.path.exists(MODEL_PATH):
+        try:
+            model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+            print(f"🔄 Đã tìm thấy model cũ. Đang nạp để huấn luyện tiếp tục...")
+            # Kiểm tra độ chính xác cũ để cập nhật best_val_acc
+            model.to(device)
+            model.eval()
+            correct_val = 0
+            with torch.no_grad():
+                for x, y in val_loader:
+                    x, y = x.to(device), y.to(device)
+                    output = model(x)
+                    _, predicted = torch.max(output.data, 1)
+                    correct_val += (predicted == y).sum().item()
+            best_val_acc = correct_val / len(val_dataset)
+            print(f"📊 Độ chính xác hiện tại của model đã nạp: {best_val_acc:.4f}")
+        except Exception as e:
+            print(f"⚠️ Không thể nạp model cũ (lỗi: {e}), sẽ train từ đầu.")
+            best_val_acc = 0
+    else:
+        best_val_acc = 0
+
     model.to(device)
 
     # 3. Training
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
-    
-    best_val_acc = 0
     epochs = 100
     history = {
         'train_acc': [], 'val_acc': [],
