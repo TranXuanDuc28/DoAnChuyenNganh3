@@ -49,6 +49,12 @@ async def websocket_recognition(websocket: WebSocket, db: Session = Depends(get_
     confidence = 0.0
     translated_sentence = ""
     is_translating = False
+    
+    # --- Tham số ổn định ---
+    MIN_CONFIDENCE = 0.90
+    STABILITY_FRAMES = 5
+    COOLDOWN_PERIOD = 15
+    cooldown_counter = 0
 
     try:
         while True:
@@ -99,15 +105,20 @@ async def websocket_recognition(websocket: WebSocket, db: Session = Depends(get_
                     pred_word, conf = ai_service.predict(window, prediction_history)
                     confidence = conf
                     
-                    if confidence > 0.85: # Chỉ nhận diện khi độ tin cậy trên 85%
+                    # LOGIC CHỐT TỪ (Đồng bộ từ main_realtime)
+                    if cooldown_counter > 0:
+                        cooldown_counter -= 1
+                    elif confidence > MIN_CONFIDENCE: 
                         consecutive_predictions.append(pred_word)
-                        if len(consecutive_predictions) > 3: consecutive_predictions.pop(0)
+                        if len(consecutive_predictions) > STABILITY_FRAMES: 
+                            consecutive_predictions.pop(0)
                         
-                        if len(consecutive_predictions) == 3 and len(set(consecutive_predictions)) == 1:
+                        if len(consecutive_predictions) == STABILITY_FRAMES and len(set(consecutive_predictions)) == 1:
                             current_prediction = consecutive_predictions[0]
                             if current_prediction != "Unknown" and current_prediction != last_added_word:
                                 sentence_buffer.append(current_prediction)
                                 last_added_word = current_prediction
+                                cooldown_counter = COOLDOWN_PERIOD # Kích hoạt thời gian chờ
                                 
                                 # Lưu vào lịch sử (History)
                                 try:
@@ -123,8 +134,12 @@ async def websocket_recognition(websocket: WebSocket, db: Session = Depends(get_
                                     db.commit()
                                 except Exception as e:
                                     print(f"DB Error: {e}")
+                                
+                                consecutive_predictions.clear()
                     else:
-                        consecutive_predictions.clear()
+                        if len(consecutive_predictions) > 0:
+                            consecutive_predictions.pop(0)
+                        current_prediction = pred_word if confidence > 0.4 else "READY"
 
             # Trả về kết quả
             await websocket.send_json({
@@ -174,8 +189,12 @@ async def upload_video(file: UploadFile = File(...), lang: str = "vi", db: Sessi
                     ret, frame = cap.retrieve()
                     if not ret: break
                     
-                    # Nén ảnh xuống cực nhỏ (240x180) để CPU xử lý cực nhanh
-                    image = cv2.resize(frame, (240, 180))
+                    # Resize giữ nguyên tỉ lệ (Aspect Ratio) để AI quét chuẩn nhất
+                    target_w = 640
+                    orig_h, orig_w = frame.shape[:2]
+                    target_h = int(orig_h * (target_w / orig_w))
+                    image = cv2.resize(frame, (target_w, target_h))
+                    
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                     results = holistic.process(image)
                     kps = extract_keypoints(results)

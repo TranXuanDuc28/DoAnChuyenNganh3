@@ -109,6 +109,12 @@ def translate_gloss_to_text(gloss_list):
         # Phát âm câu tiếng Việt
         speak_text(translated_sentence_vi)
         
+        print(f"\n--- KẾT QUẢ DỊCH AI ---")
+        print(f"Glosses: {gloss_list}")
+        print(f"Tiếng Việt: {translated_sentence_vi}")
+        print(f"Tiếng Anh: {translated_sentence_en}")
+        print(f"-----------------------\n")
+        
         # Lưu lịch sử
         save_to_history(translated_sentence_vi, translated_sentence_en, gloss_list)
         
@@ -120,7 +126,7 @@ def translate_gloss_to_text(gloss_list):
 
 # --- Cấu hình Đường dẫn tương đối ---
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
-CORE_DIR = os.path.join(BACKEND_DIR, 'core')
+CORE_DIR = os.path.join(BACKEND_DIR, 'ml_core')
 DATA_DIR = os.path.join(BACKEND_DIR, 'data')
 WEIGHTS_DIR = os.path.join(BACKEND_DIR, 'weights')
 
@@ -138,14 +144,15 @@ WEIGHTS_PATH = os.path.join(WEIGHTS_DIR, "best_tgcn_model.pth")
 LABEL_MAP_PATH = os.path.join(DATA_DIR, "label_map.json")
 
 NUM_SAMPLES = 30
-NUM_CLASSES = 25  # Thay đổi thành 25
+NUM_CLASSES = 52  # Nâng cấp lên 52 từ vựng
 HIDDEN_SIZE = 64
 NUM_STAGES = 20
-
 # --- Cấu hình Nhận diện liên tục ---
 AUTO_TRANSLATE_SEC = 2.5  # Giây đứng yên để tự động dịch
-MOVEMENT_THRESHOLD = 0.005 # Ngưỡng chuyển động tay (Dưới mức này coi là Idle)
-MIN_CONFIDENCE = 0.85      # Độ tự tin tối thiểu để chốt từ
+MOVEMENT_THRESHOLD = 0.003 # Ngưỡng nhạy vừa phải
+MIN_CONFIDENCE = 0.85      # Quay lại mức 0.85
+STABILITY_FRAMES = 4       # Cần 4 khung hình liên tiếp
+COOLDOWN_PERIOD = 15       # Nghỉ 15 khung hình sau khi chốt
 
 def load_labels():
     with open(LABEL_MAP_PATH, 'r') as f:
@@ -197,6 +204,7 @@ def main():
     last_added_word = ""
     last_movement_time = time.time() # Thời điểm cuối cùng phát hiện múa
     last_action_detected = False     # Trạng thái đang múa hay không
+    cooldown_counter = 0             # Đếm ngược thời gian chờ sau khi chốt từ
     
     # 5. Webcam/Video Loop
     video_source = args.video if args.video is not None else 0
@@ -210,19 +218,20 @@ def main():
     confidence = 0.0
     frame_count = 0
     
-    # System delay để file mp4 chạy ở mức xấp xỉ tốc độ 1x (30fps)
-    wait_time = 10 if args.video is None else 33 
+    # Giảm wait_time xuống tối thiểu để không cộng dồn độ trễ xử lý AI
+    wait_time = 1 
 
-    with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+    with mp_holistic.Holistic(
+        model_complexity=0, 
+        min_detection_confidence=0.5, 
+        min_tracking_confidence=0.5
+    ) as holistic:
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
-                print(f"End of video stream. Processed {frame_count} frames.")
-                if args.video is not None and frame_count > 0:
-                    print(f"Dự đoán cuối cùng: {current_prediction} (Conf: {confidence:.2f})")
-                    print("Nhấn phím bất kỳ (trên cửa sổ OpenCV) để thoát...")
-                    cv2.waitKey(0)
                 break
+            
+            # Giữ nguyên độ phân giải gốc của video
             frame_count += 1
 
             # Process MediaPipe
@@ -255,6 +264,14 @@ def main():
                 # Tính lượng thay đổi chuyển động (Action Spotting)
                 movement = compute_hand_movement(window)
                 
+                # Kiểm tra xem MediaPipe có bắt được tay không (nếu tọa độ khác 0)
+                hands_detected = np.any(window[:, 33:75, :] != 0)
+                
+                # DEBUG: In ra mỗi 10 khung hình để tránh tràn terminal
+                if frame_count % 10 == 0:
+                    status = "Có Tay" if hands_detected else "KHÔNG THẤY TAY"
+                    print(f"[DEBUG MP] Movement: {movement:.5f} | Status: {status}")
+
                 if movement < MOVEMENT_THRESHOLD:  
                     current_prediction = "Đứng yên (Idle)"
                     last_added_word = ""  # Tay buông xuống -> Mở khóa từ
@@ -283,27 +300,42 @@ def main():
                         conf, pred_idx = torch.max(avg_probs, dim=1)
                         confidence = conf.item()
                         
+                        pred_word = id_to_word.get(pred_idx.item(), "Unknown")
+                        
+                        # DEBUG: In ra mọi thứ AI nhìn thấy nếu độ tin cậy > 0.4
+                        if confidence > 0.4:
+                            print(f"--- [DEBUG] AI đang thấy: {pred_word} ({confidence:.2f})")
+
                         # Consecutive Voting (Khóa kết quả bằng tần số xuất hiện)
                         if confidence > MIN_CONFIDENCE:
-                            pred_word = id_to_word.get(pred_idx.item(), "Unknown")
                             consecutive_predictions.append(pred_word)
-                            # Giữ lại 3 kết quả vừa nhất
-                            if len(consecutive_predictions) > 3:
+                            # Giữ lại số lượng khung hình cần kiểm chứng
+                            if len(consecutive_predictions) > STABILITY_FRAMES:
                                 consecutive_predictions.pop(0)
                         else:
-                            pred_word = "Đang xem..."
-                            consecutive_predictions.clear()
+                            # Không xóa sạch ngay, mà chỉ xóa từ từ hoặc giữ nguyên để đợi khung hình tiếp theo
+                            if len(consecutive_predictions) > 0:
+                                consecutive_predictions.pop(0)
 
-                        # Chỉ hiện tên lệnh khi 3 khung hình liên tục đoán ra 1 chữ (Vượt qua mức nháy hình)
-                        if len(consecutive_predictions) == 3 and len(set(consecutive_predictions)) == 1:
-                            current_prediction = consecutive_predictions[0]
+                        # LOGIC CHỐT TỪ
+                        if cooldown_counter > 0:
+                            cooldown_counter -= 1
+                            current_prediction = f"Đợi ({cooldown_counter})"
+                        elif len(consecutive_predictions) >= STABILITY_FRAMES and len(set(consecutive_predictions)) == 1:
+                            detected_word = consecutive_predictions[0]
                             
-                            # LOGIC GHÉP CÂU: Thêm vào chuỗi nếu nó là từ mới
-                            if current_prediction != "Unknown" and current_prediction != last_added_word:
-                                sentence_buffer.append(current_prediction)
-                                last_added_word = current_prediction
-                                
-                        elif current_prediction == "Đứng yên (Idle)":
+                            if detected_word != "Unknown" and detected_word != last_added_word:
+                                sentence_buffer.append(detected_word)
+                                last_added_word = detected_word
+                                cooldown_counter = COOLDOWN_PERIOD 
+                                print(f"[NHẬN DIỆN] Chốt từ: {detected_word}")
+                                current_prediction = f"CHỐT: {detected_word}"
+                                consecutive_predictions.clear() 
+                            else:
+                                current_prediction = detected_word
+                        elif last_action_detected:
+                            current_prediction = pred_word
+                        else:
                             current_prediction = "Đang chờ..."
 
                 # --- LOGIC TỰ ĐỘNG DỊCH (Auto-Translate) ---
@@ -368,6 +400,18 @@ def main():
                 # Kích hoạt luồng AI dịch thuật để không làm đơ Camera
                 if len(sentence_buffer) > 0 and not is_translating:
                     threading.Thread(target=translate_gloss_to_text, args=(sentence_buffer.copy(),)).start()
+
+    # --- KẾT THÚC VIDEO ---
+    print(f"\n[HOÀN THÀNH] Đã xử lý {frame_count} khung hình.")
+    if sentence_buffer:
+        print(f"Toàn bộ chuỗi từ nhận diện được: {sentence_buffer}")
+        # Tự động dịch luôn khi kết thúc video nếu có từ
+        if not is_translating:
+            translate_gloss_to_text(sentence_buffer.copy())
+    
+    if args.video is not None:
+        print("Nhấn phím bất kỳ (trên cửa sổ OpenCV) để thoát...")
+        cv2.waitKey(0)
 
     cap.release()
     cv2.destroyAllWindows()

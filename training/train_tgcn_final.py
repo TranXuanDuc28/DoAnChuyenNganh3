@@ -25,7 +25,7 @@ KEYPOINTS_DIR = os.path.join(FINAL_DIR, 'keypoints')
 LABEL_MAP_FILE = os.path.join(FINAL_DIR, 'final_label_map.json')
 
 NUM_SAMPLES = 30  
-NUM_CLASSES = 25  # Tăng lên 25 classes theo dataset Merged_ASL
+NUM_CLASSES = 52  # Nâng cấp lên 52 classes theo bộ dữ liệu cân bằng
 HIDDEN_SIZE = 64
 NUM_STAGES = 20
 
@@ -35,17 +35,23 @@ HAND_INDICES = list(range(33, 75))
 TGCN_INDICES = BODY_INDICES + HAND_INDICES
 
 class TGCN_Final_Dataset(Dataset):
-    def __init__(self, csv_file, label_map, is_train=True):
+    def __init__(self, csv_file, label_map, is_train=True, max_samples=120):
         self.samples = []
         self.labels = []
         self.is_train = is_train
         
-        path = os.path.join(FINAL_DIR, csv_file)
+        # Đường dẫn đến thư mục chứa CSV
+        DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
+        path = os.path.join(DATA_DIR, csv_file)
         if not os.path.exists(path):
-            print(f"Cảnh báo: Không tìm thấy {csv_file}")
+            print(f"Cảnh báo: Không tìm thấy {csv_file} tại {DATA_DIR}")
             return
             
         df = pd.read_csv(path)
+        
+        # --- Logic cân bằng dữ liệu ---
+        counts = {gloss: 0 for gloss in label_map}
+        
         for _, row in df.iterrows():
             video_id = row['VideoID']
             gloss = row['Gloss']
@@ -53,8 +59,18 @@ class TGCN_Final_Dataset(Dataset):
             
             # Chỉ nạp khi file trích xuất Mediapipe tồn tại
             if os.path.exists(file_path) and gloss in label_map:
+                # Nếu là lúc Train, giới hạn tối đa mẫu mỗi lớp
+                if self.is_train and counts[gloss] >= max_samples:
+                    continue
+                    
                 self.samples.append(file_path)
                 self.labels.append(label_map[gloss])
+                counts[gloss] += 1
+        
+        if self.is_train:
+            print(f"--- Đã nạp dữ liệu Train (Giới hạn tối đa {max_samples} mẫu/lớp) ---")
+            for g, c in counts.items():
+                if c > 0: print(f" {g}: {c}")
 
     def __len__(self):
         return len(self.samples)
@@ -97,6 +113,10 @@ class TGCN_Final_Dataset(Dataset):
                 dup_indices = sorted(list(range(T)) + list(np.random.choice(T, dup_count, replace=True)))
                 seq_55 = seq_55[dup_indices]
                 T = seq_55.shape[0]
+            elif np.random.rand() > 0.7:
+                # Thêm nhiễu Gaussian (Giúp Model chịu lỗi tốt hơn)
+                noise = np.random.normal(0, 0.005, seq_55.shape)
+                seq_55 = seq_55 + noise
                 
             # Random Jittering & Scale
             if np.random.rand() > 0.5:
@@ -166,49 +186,117 @@ def train():
     
     best_val_acc = 0
     epochs = 100
+    history = {
+        'train_acc': [], 'val_acc': [],
+        'train_loss': [], 'val_loss': []
+    }
+    
     print(f"Bắt đầu huấn luyện {num_classes} lớp trên {device.type.upper()}...")
     
-    for epoch in range(epochs):
-        model.train()
-        train_loss, correct_train = 0, 0
-        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1:03d}/{epochs} [TRAIN]")
-        
-        for x, y in train_pbar:
-            x, y = x.to(device), y.to(device)
-            optimizer.zero_grad()
-            output = model(x)
-            loss = criterion(output, y)
-            loss.backward()
-            optimizer.step()
+    try:
+        for epoch in range(epochs):
+            model.train()
+            train_loss, correct_train = 0, 0
+            train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1:03d}/{epochs} [TRAIN]")
             
-            train_loss += loss.item()
-            _, predicted = torch.max(output.data, 1)
-            correct_train += (predicted == y).sum().item()
-            train_pbar.set_postfix({'loss': f"{loss.item():.4f}"})
-            
-        train_acc = correct_train / len(train_dataset)
-        
-        model.eval()
-        val_loss, correct_val = 0, 0
-        with torch.no_grad():
-            for x, y in val_loader:
+            for x, y in train_pbar:
                 x, y = x.to(device), y.to(device)
+                optimizer.zero_grad()
                 output = model(x)
                 loss = criterion(output, y)
-                val_loss += loss.item()
-                _, predicted = torch.max(output.data, 1)
-                correct_val += (predicted == y).sum().item()
+                loss.backward()
+                optimizer.step()
                 
-        val_acc = correct_val / len(val_dataset)
-        
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            # Lưu model với số classes động trong tên nếu cần, hoặc ghi đè file FINAL
-            torch.save(model.state_dict(), 'best_tgcn_model_FINAL.pth')
+                train_loss += loss.item()
+                _, predicted = torch.max(output.data, 1)
+                correct_train += (predicted == y).sum().item()
+                train_pbar.set_postfix({'loss': f"{loss.item():.4f}"})
+                
+            train_acc = correct_train / len(train_dataset)
             
-        print(f"-> KQ Epoch [{epoch+1:03d}/{epochs}]: Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} (Best: {best_val_acc:.4f})")
+            model.eval()
+            val_loss, correct_val = 0, 0
+            with torch.no_grad():
+                for x, y in val_loader:
+                    x, y = x.to(device), y.to(device)
+                    output = model(x)
+                    loss = criterion(output, y)
+                    val_loss += loss.item()
+                    _, predicted = torch.max(output.data, 1)
+                    correct_val += (predicted == y).sum().item()
+                    
+            val_acc = correct_val / len(val_dataset)
+            
+            # Lưu history
+            history['train_acc'].append(train_acc)
+            history['val_acc'].append(val_acc)
+            history['train_loss'].append(train_loss / len(train_loader))
+            history['val_loss'].append(val_loss / len(val_loader))
+            
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                torch.save(model.state_dict(), 'best_tgcn_model_FINAL.pth')
+                
+            print(f"-> KQ Epoch [{epoch+1:03d}/{epochs}]: Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} (Best: {best_val_acc:.4f})")
+    except KeyboardInterrupt:
+        print("\n[HÀNH ĐỘNG] Đã dừng huấn luyện thủ công bởi người dùng.")
 
-    print(f"\n✅ Hoàn tất! Best Accuracy: {best_val_acc:.4f}")
+    print(f"\n✅ Hoàn tất! Best Accuracy đạt được: {best_val_acc:.4f}")
+    
+    # 4. Xuất Báo cáo & Đồ thị
+    print("\n--- Đang tạo báo cáo đánh giá ---")
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        from sklearn.metrics import confusion_matrix, classification_report
+        
+        # A. Vẽ biểu đồ Accuracy & Loss
+        plt.figure(figsize=(12, 5))
+        plt.subplot(1, 2, 1)
+        plt.plot(history['train_acc'], label='Train Acc')
+        plt.plot(history['val_acc'], label='Val Acc')
+        plt.title('Model Accuracy')
+        plt.legend()
+        
+        plt.subplot(1, 2, 2)
+        plt.plot(history['train_loss'], label='Train Loss')
+        plt.plot(history['val_loss'], label='Val Loss')
+        plt.title('Model Loss')
+        plt.legend()
+        plt.savefig('training_history.png')
+        print("- Đã lưu biểu đồ: training_history.png")
+        
+        # B. Tạo Confusion Matrix
+        model.load_state_dict(torch.load('best_tgcn_model_FINAL.pth'))
+        model.eval()
+        all_preds = []
+        all_labels = []
+        with torch.no_grad():
+            for x, y in val_loader:
+                x = x.to(device)
+                outputs = model(x)
+                _, predicted = torch.max(outputs, 1)
+                all_preds.extend(predicted.cpu().numpy())
+                all_labels.extend(y.numpy())
+        
+        cm = confusion_matrix(all_labels, all_preds)
+        plt.figure(figsize=(20, 15))
+        sns.heatmap(cm, annot=False, cmap='Blues', xticklabels=id_to_word.values(), yticklabels=id_to_word.values())
+        plt.title('Confusion Matrix')
+        plt.xlabel('Predicted')
+        plt.ylabel('True')
+        plt.savefig('confusion_matrix.png')
+        print("- Đã lưu biểu đồ: confusion_matrix.png")
+        
+        # C. Xuất Classification Report
+        target_names = [id_to_word[i] for i in range(num_classes)]
+        report = classification_report(all_labels, all_preds, target_names=target_names)
+        with open('classification_report.txt', 'w', encoding='utf-8') as f:
+            f.write(report)
+        print("- Đã lưu báo cáo: classification_report.txt")
+        
+    except ImportError:
+        print("Cảnh báo: Không thể tạo biểu đồ do thiếu thư viện (matplotlib, seaborn, sklearn).")
 
 if __name__ == "__main__":
     train()

@@ -74,28 +74,32 @@ def process_single_video(video_info):
         return False
 
 def main():
-    print("=== Bước 1: Tạo tệp Label Map ===")
+    # Load label map hiện tại (52 từ) để lọc
+    LABEL_MAP_PATH = os.path.join(FINAL_DIR, '..', 'backend', 'data', 'label_map.json')
+    if not os.path.exists(LABEL_MAP_PATH):
+        print("Lỗi: Không tìm thấy label_map.json tại backend/data")
+        return
+        
+    with open(LABEL_MAP_PATH, 'r') as f:
+        target_label_map = json.load(f)
     
-    all_glosses = set()
     df_list = []
-    
+    # Duyệt qua các file CSV trong backend/data
+    DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
     for csv_file in CSV_FILES:
-        path = os.path.join(FINAL_DIR, csv_file)
+        path = os.path.join(DATA_DIR, csv_file)
         if os.path.exists(path):
             df = pd.read_csv(path)
-            all_glosses.update(df['Gloss'].unique())
+            # Chỉ lấy các dòng có Gloss nằm trong bộ 52 từ
+            df = df[df['Gloss'].isin(target_label_map.keys())]
             df_list.append(df)
             
     if not df_list:
-        print("Lỗi: Không tìm thấy file CSV nào!")
+        print(f"Lỗi: Không tìm thấy file CSV nào tại {DATA_DIR}!")
         return
         
-    sorted_glosses = sorted(list(all_glosses))
-    label_map = {gloss: idx for idx, gloss in enumerate(sorted_glosses)}
-    
-    with open(LABEL_MAP_FILE, 'w') as f:
-        json.dump(label_map, f, indent=4)
-    print(f"Đã tạo {LABEL_MAP_FILE} với {len(label_map)} từ vựng.")
+    print(f"Đã nạp dữ liệu cho {len(target_label_map)} từ vựng mục tiêu.")
+
     
     print("\n=== Bước 2: Trích xuất MediaPipe Keypoints (ĐA NHIỆM) ===")
     
