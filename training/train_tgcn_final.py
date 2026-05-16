@@ -1,10 +1,10 @@
+
 import os
 import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-import pandas as pd
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 import sys
@@ -14,305 +14,148 @@ import argparse
 FINAL_DIR = os.path.dirname(os.path.abspath(__file__))
 WLASL_DIR = os.path.abspath(os.path.join(FINAL_DIR, '..', 'WLASL'))
 
-# Import TGCN model components from the local code folder in WLASL
+# Import TGCN model components
 sys.path.append(os.path.join(WLASL_DIR, 'code', 'TGCN'))
 try:
     from tgcn_model import GCN_muti_att
 except ModuleNotFoundError:
-    print("Lỗi: Không tìm thấy thư mục TGCN tại:", os.path.join(WLASL_DIR, 'code', 'TGCN'))
+    print("Error: Could not find TGCN code folder.")
     sys.exit(1)
 
 KEYPOINTS_DIR = os.path.join(FINAL_DIR, 'keypoints')
 LABEL_MAP_FILE = os.path.join(FINAL_DIR, 'final_label_map.json')
 
 NUM_SAMPLES = 30  
-NUM_CLASSES = 30  # Chốt 30 từ để đạt độ chính xác cao nhất
-HIDDEN_SIZE = 128 # Tăng lại lên 128 để gánh 30 lớp tốt hơn
+HIDDEN_SIZE = 128 
 NUM_STAGES = 20
 
-# Khớp nối (Indices)
+# Joint Indices
 BODY_INDICES = [0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24]
 HAND_INDICES = list(range(33, 75)) # 21 LH + 21 RH
-TGCN_INDICES = BODY_INDICES + HAND_INDICES # Tổng cộng 13 + 42 = 55 khớp
+TGCN_INDICES = BODY_INDICES + HAND_INDICES # 55 joints
 
-class TGCN_Final_Dataset(Dataset):
-    def __init__(self, csv_file, label_map, is_train=True, max_samples=None):
+class TGCN_Folder_Dataset(Dataset):
+    def __init__(self, label_map, is_train=True, split_ratio=0.85, balance_limit=None):
         self.samples = []
         self.labels = []
         self.is_train = is_train
+        # --- Logic nạp dữ liệu và Oversampling để cân bằng ---
+        max_class_count = 0
+        word_data = {}
         
-        DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
-        path = os.path.join(DATA_DIR, csv_file)
-        if not os.path.exists(path):
-            print(f"Cảnh báo: Không tìm thấy {csv_file} tại {DATA_DIR}")
-            return
-            
-        df = pd.read_csv(path)
-        
-        # --- Logic cân bằng dữ liệu ---
-        counts = {gloss: 0 for gloss in label_map}
-        
-        for _, row in df.iterrows():
-            video_id = row['VideoID']
-            gloss = row['Gloss']
-            file_path = os.path.join(KEYPOINTS_DIR, f"{video_id}.npy")
-            
-            if os.path.exists(file_path) and gloss in label_map:
-                # Nếu max_samples được cung cấp, ta giới hạn cứng để cân bằng
-                if max_samples is not None and counts[gloss] >= max_samples:
-                    continue
+        for word, idx in label_map.items():
+            word_dir = os.path.join(KEYPOINTS_DIR, word)
+            if os.path.exists(word_dir):
+                files = [os.path.join(word_dir, f) for f in os.listdir(word_dir) if f.endswith('.npy')]
+                if len(files) > 0:
+                    np.random.shuffle(files)
+                    split_idx = int(len(files) * split_ratio)
+                    selected = files[:split_idx] if is_train else files[split_idx:]
                     
-                self.samples.append(file_path)
-                self.labels.append(label_map[gloss])
-                counts[gloss] += 1
+                    if len(selected) > 0:
+                        word_data[idx] = selected
+                        if len(selected) > max_class_count:
+                            max_class_count = len(selected)
         
-        if self.is_train:
-            print(f"--- Đã nạp dữ liệu Train (Cân bằng: {max_samples} mẫu/lớp) ---")
-            # In tóm tắt ngắn gọn
-            valid_counts = [c for c in counts.values() if c > 0]
-            print(f" Số lớp: {len(valid_counts)} | Mẫu mỗi lớp: {min(valid_counts) if valid_counts else 0} - {max(valid_counts) if valid_counts else 0}")
+        # Nếu đang Train, thực hiện Oversampling để mọi lớp đều có số mẫu bằng max_class_count
+        target_count = max_class_count if is_train else None
+        
+        for idx, files in word_data.items():
+            current_files = list(files)
+            if is_train and target_count:
+                # Nhân bản cho đến khi đạt target_count
+                while len(current_files) < target_count:
+                    current_files.extend(files[:target_count - len(current_files)])
+            
+            for f in current_files:
+                self.samples.append(f)
+                self.labels.append(idx)
+            
+        print(f"--- Loaded {'TRAIN' if is_train else 'VALID'} Data ---")
+        print(f" Total samples after balancing: {len(self.samples)} | Samples per class: {target_count if is_train else 'Variable'}")
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        # seq là (T, 75, 3) do script extract lưu lại
         seq = np.load(self.samples[idx])
         T = seq.shape[0]
-        
-        # --- Normalization (Chống Domain Gap) ---
         res_seq = np.zeros_like(seq)
         for i in range(T):
             nose = seq[i, 0]
             s1, s2 = seq[i, 11], seq[i, 12]
-            shoulder_dist = np.linalg.norm(s1 - s2)
-            if shoulder_dist == 0:
-                shoulder_dist = 1.0
-                
+            dist = np.linalg.norm(s1 - s2)
+            if dist == 0: dist = 1.0
             if not np.all(nose == 0):
                 for j in range(75):
                     if not np.all(seq[i, j] == 0):
-                        res_seq[i, j] = (seq[i, j] - nose) / shoulder_dist
-                        
-        seq = res_seq
+                        res_seq[i, j] = (seq[i, j] - nose) / dist
         
-        # Lấy 55 khớp nối X,Y
-        seq_55 = seq[:, TGCN_INDICES, :2]
-        
-        # --- Data Augmentation cho lúc huấn luyện ---
+        seq_55 = res_seq[:, TGCN_INDICES, :2]
         if self.is_train and T > 5:
             if np.random.rand() > 0.5:
-                # Speed up
-                drop_count = np.random.randint(1, max(2, int(T * 0.2)))
-                keep_indices = sorted(np.random.choice(T, T - drop_count, replace=False))
-                seq_55 = seq_55[keep_indices]
-                T = seq_55.shape[0]
-            elif np.random.rand() > 0.5:
-                # Slow down
-                dup_count = np.random.randint(1, max(2, int(T * 0.2)))
-                dup_indices = sorted(list(range(T)) + list(np.random.choice(T, dup_count, replace=True)))
-                seq_55 = seq_55[dup_indices]
-                T = seq_55.shape[0]
-            elif np.random.rand() > 0.7:
-                # Thêm nhiễu Gaussian
-                noise = np.random.normal(0, 0.005, seq_55.shape)
-                seq_55 = seq_55 + noise
-                
+                fact = np.random.uniform(0.8, 1.2)
+                new_T = max(5, int(T * fact))
+                indices = np.linspace(0, T - 1, new_T).astype(int)
+                seq_55 = seq_55[indices]
+                T = new_T
+            if np.random.rand() > 0.8:
+                seq_55 += np.random.normal(0, 0.002, seq_55.shape)
+
         indices = np.linspace(0, T - 1, NUM_SAMPLES).astype(int)
         sampled_seq = seq_55[indices]
         seq_flat = sampled_seq.transpose(1, 0, 2).reshape(55, -1)
-            
         return torch.FloatTensor(seq_flat), torch.tensor(self.labels[idx])
 
 def train(output_dir=None):
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-        print(f"📁 Kết quả sẽ được lưu vào: {output_dir}")
-        model_save_path = os.path.join(output_dir, 'best_tgcn_model_FINAL.pth')
-    else:
-        output_dir = "."
-        model_save_path = os.path.join(output_dir, 'best_tgcn_model_FINAL.pth')
-
-    label_map_save_path = os.path.join(output_dir, 'final_label_map.json') # Lưu vào Drive
+    if not output_dir: output_dir = "."
+    os.makedirs(output_dir, exist_ok=True)
+        
+    model_save_path = os.path.join(output_dir, 'best_tgcn_model_30.pth')
     history_img_path = os.path.join(output_dir, 'training_history.png')
     cm_img_path = os.path.join(output_dir, 'confusion_matrix.png')
     report_txt_path = os.path.join(output_dir, 'classification_report.txt')
-    
-    # --- DANH SÁCH 45 TỪ VỰNG "VÀNG" ĐỂ GIAO TIẾP & SINH TỒN ---
-    ESSENTIAL_VOCAB = [
-        "ME", "YOU", "WE", "WHO",        # Đại từ
-        "WANT1", "NEED", "LIKE", "HELP", # Động từ nhu cầu
-        "GO", "COME", "EAT1", "DRINK1",  # Hành động
-        "HELLO", "THANKYOU", "SORRY",    # Giao tiếp
-        "WHAT1", "WHERE", "WHY",         # Câu hỏi
-        "GOOD", "BAD", "YES", "NO",      # Phản hồi
-        "MOTHER", "FATHER", "FRIEND",    # Đối tượng
-        "NOW", "TIME", "FINISH",         # Thời gian/Trạng thái
-        "SLEEP", "HAPPY",                # Cảm xúc/Nhu cầu
-        # 15 từ mới bổ sung (Sinh tồn)
-        "SICK", "HURT", "HOSPITAL", "TOILET", "PLEASE", 
-        "AGAIN", "UNDERSTAND", "DONT_UNDERSTAND", "WAIT", "HOME", 
-        "SCARED", "MONEY", "WORK", "NAME", "POLICE"
-    ]
-    
-    # Tạo Label Map cố định và LƯU VÀO ĐÚNG THƯ MỤC OUTPUT
-    label_map = {gloss: i for i, gloss in enumerate(ESSENTIAL_VOCAB)}
-    with open(label_map_save_path, 'w', encoding='utf-8') as f:
-        json.dump(label_map, f, indent=4)
-    
-    print(f"✅ Đã lưu Label Map vào: {label_map_save_path}")
-    
-    # 0. Chẩn đoán đường dẫn (Rất quan trọng cho Colab)
-    print(f"🔍 Working Directory: {os.getcwd()}")
-    print(f"🔍 Keypoints Path: {KEYPOINTS_DIR}")
-    if os.path.exists(KEYPOINTS_DIR):
-        files = [f for f in os.listdir(KEYPOINTS_DIR) if f.endswith('.npy')]
-        print(f"📂 Tìm thấy {len(files)} file .npy trong thư mục keypoints.")
-    else:
-        print(f"❌ KHÔNG tìm thấy thư mục: {KEYPOINTS_DIR}")
 
-    # Đếm số lượng mẫu hiện có cho danh sách này
-    DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
-    csv_path = os.path.join(DATA_DIR, 'train.csv')
-    if not os.path.exists(csv_path):
-        print(f"❌ KHÔNG tìm thấy file CSV: {csv_path}")
+    if not os.path.exists(LABEL_MAP_FILE):
+        print(f"Error: {LABEL_MAP_FILE} not found.")
         return
-    train_df = pd.read_csv(csv_path)
-    
-    available_counts = {}
-    for gloss in ESSENTIAL_VOCAB:
-        count = 0
-        gloss_df = train_df[train_df['Gloss'] == gloss]
-        for _, row in gloss_df.iterrows():
-            if os.path.exists(os.path.join(KEYPOINTS_DIR, f"{row['VideoID']}.npy")):
-                count += 1
-        available_counts[gloss] = count
-    
-    # --- CHẾ ĐỘ 45 TỪ VỰNG THIẾT YẾU & SINH TỒN ---
-    QUALIFIED_WORDS = ESSENTIAL_VOCAB 
-    TARGET_SAMPLES = 100 # Mục tiêu lý tưởng
-    
-    # Tạo lại Label Map với đầy đủ 45 từ
-    label_map = {gloss: i for i, gloss in enumerate(QUALIFIED_WORDS)}
-    with open(label_map_save_path, 'w', encoding='utf-8') as f:
-        json.dump(label_map, f, indent=4)
-        
-    # Tính ngưỡng cân bằng thực tế (min của tất cả 45 từ)
-    valid_counts = [available_counts[w] for w in QUALIFIED_WORDS]
-    balance_limit = min(valid_counts) if valid_counts else 0
-    
-    print(f"🚀 Đã kích hoạt bộ 45 từ vựng Giao tiếp & Sinh tồn.")
-    print(f"📊 Ngưỡng cân bằng hiện tại: {balance_limit} mẫu/lớp (do từ thấp nhất quyết định).")
-    
-    print("\n📝 DANH SÁCH CẦN QUAY THÊM VIDEO (Mục tiêu 100 mẫu/lớp):")
-    print(f"{'Từ vựng':<15} | {'Hiện có':<10} | {'Cần thêm':<10} | {'Trạng thái'}")
-    print("-" * 55)
-    for word in QUALIFIED_WORDS:
-        count = available_counts[word]
-        needed = max(0, TARGET_SAMPLES - count)
-        status = "✅ Đạt" if needed == 0 else f"⚠️ Thiếu {needed}"
-        print(f"{word:<15} | {count:<10} | {needed:<10} | {status}")
-    
+    with open(LABEL_MAP_FILE, 'r') as f:
+        label_map = json.load(f)
     num_classes = len(label_map)
     id_to_word = {v: k for k, v in label_map.items()}
 
-    # 1. Setup Data
-    print("\n--- Báo cáo Dữ liệu ---")
-    train_dataset = TGCN_Final_Dataset('train.csv', label_map, is_train=True, max_samples=balance_limit)
-    val_dataset = TGCN_Final_Dataset('valid.csv', label_map, is_train=False)
+    train_dataset = TGCN_Folder_Dataset(label_map, is_train=True, balance_limit=150)
+    val_dataset = TGCN_Folder_Dataset(label_map, is_train=False, balance_limit=150)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
     
-    # Thống kê phân phối lớp thực tế
-    class_counts = {}
-    for label_idx in train_dataset.labels:
-        word = id_to_word[label_idx]
-        class_counts[word] = class_counts.get(word, 0) + 1
-    
-    print(f"{'Gloss':<15} | {'Samples (Train)':<15}")
-    print("-" * 35)
-    for word in sorted(class_counts.keys()):
-        print(f"{word:<15} | {class_counts[word]:<15}")
-    
-    total_samples = len(train_dataset) + len(val_dataset)
-    print("-" * 35)
-    print(f"Tổng số lớp (Classes): {num_classes}")
-    print(f"Tổng số mẫu (Samples): {total_samples}")
-    print(f"Training: {len(train_dataset)} | Val: {len(val_dataset)}")
-    print("------------------------\n")
-
-    if total_samples == 0:
-        print("❌ Lỗi: Không nạp được mẫu nào. Kiểm tra thư mục keypoints/ hoặc file CSV.")
-        print(f"Gợi ý: Kiểm tra xem các file .npy có nằm trong {KEYPOINTS_DIR} không?")
-        return
-        
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
-    
-    # 2. Setup Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = GCN_muti_att(input_feature=NUM_SAMPLES*2, hidden_feature=HIDDEN_SIZE, 
-                         num_class=num_classes, p_dropout=0.5, num_stage=NUM_STAGES)
+                         num_class=num_classes, p_dropout=0.3, num_stage=NUM_STAGES).to(device)
     
-    # --- TỰ ĐỘNG NẠP MODEL CŨ ĐỂ TRAIN TIẾP (RESUME) ---
-    # Ưu tiên tìm ở output_dir, nếu không thấy thì tìm ở thư mục hiện tại
-    load_path = model_save_path if os.path.exists(model_save_path) else 'best_tgcn_model_FINAL.pth'
-    
-    if os.path.exists(load_path):
-        try:
-            model.load_state_dict(torch.load(load_path, map_location=device))
-            print(f"🔄 Đã tìm thấy model cũ tại {load_path}. Đang nạp để huấn luyện tiếp tục...")
-            # Kiểm tra độ chính xác cũ để cập nhật best_val_acc
-            model.to(device)
-            model.eval()
-            correct_val = 0
-            with torch.no_grad():
-                for x, y in val_loader:
-                    x, y = x.to(device), y.to(device)
-                    output = model(x)
-                    _, predicted = torch.max(output.data, 1)
-                    correct_val += (predicted == y).sum().item()
-            best_val_acc = correct_val / len(val_dataset)
-            print(f"📊 Độ chính xác hiện tại của model đã nạp: {best_val_acc:.4f}")
-        except Exception as e:
-            print(f"⚠️ Không thể nạp model cũ (lỗi: {e}), sẽ train từ đầu.")
-            best_val_acc = 0
-    else:
-        best_val_acc = 0
-
-    model.to(device)
-
-    # 3. Training
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    # Thêm Scheduler để giảm LR khi Val Loss không giảm
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=8)
     criterion = nn.CrossEntropyLoss()
-    epochs = 100
-    history = {
-        'train_acc': [], 'val_acc': [],
-        'train_loss': [], 'val_loss': []
-    }
     
-    print(f"Bắt đầu huấn luyện {num_classes} lớp trên {device.type.upper()}...")
-    
+    epochs = 80
+    best_val_acc = 0
+    history = {'train_acc': [], 'val_acc': [], 'train_loss': [], 'val_loss': []}
+
+    print(f"Starting training on {device.type.upper()}...")
     try:
         for epoch in range(epochs):
             model.train()
             train_loss, correct_train = 0, 0
-            train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1:03d}/{epochs} [TRAIN]")
-            
-            for x, y in train_pbar:
+            for x, y in tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}"):
                 x, y = x.to(device), y.to(device)
                 optimizer.zero_grad()
                 output = model(x)
                 loss = criterion(output, y)
                 loss.backward()
                 optimizer.step()
-                
                 train_loss += loss.item()
-                _, predicted = torch.max(output.data, 1)
-                correct_train += (predicted == y).sum().item()
-                train_pbar.set_postfix({'loss': f"{loss.item():.4f}"})
-                
-            train_acc = correct_train / len(train_dataset)
+                _, pred = torch.max(output.data, 1)
+                correct_train += (pred == y).sum().item()
             
             model.eval()
             val_loss, correct_val = 0, 0
@@ -322,93 +165,59 @@ def train(output_dir=None):
                     output = model(x)
                     loss = criterion(output, y)
                     val_loss += loss.item()
-                    _, predicted = torch.max(output.data, 1)
-                    correct_val += (predicted == y).sum().item()
-                    
-            val_acc = correct_val / len(val_dataset)
-            avg_val_loss = val_loss / len(val_loader)
+                    _, pred = torch.max(output.data, 1)
+                    correct_val += (pred == y).sum().item()
             
-            # Cập nhật Scheduler dựa trên val_loss
-            scheduler.step(avg_val_loss)
+            t_acc, v_acc = correct_train/len(train_dataset), correct_val/len(val_dataset)
+            v_loss = val_loss/len(val_loader)
+            history['train_acc'].append(t_acc); history['val_acc'].append(v_acc)
+            history['train_loss'].append(train_loss/len(train_loader)); history['val_loss'].append(v_loss)
             
-            # Lưu history
-            history['train_acc'].append(train_acc)
-            history['val_acc'].append(val_acc)
-            history['train_loss'].append(train_loss / len(train_loader))
-            history['val_loss'].append(avg_val_loss)
-            
-            if val_acc > best_val_acc:
-                best_val_acc = val_acc
+            scheduler.step(v_loss)
+            if v_acc > best_val_acc:
+                best_val_acc = v_acc
                 torch.save(model.state_dict(), model_save_path)
-                
-            print(f"-> KQ Epoch [{epoch+1:03d}/{epochs}]: Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} (Best: {best_val_acc:.4f}) | LR: {optimizer.param_groups[0]['lr']:.6f}")
+            
+            print(f" Acc: T={t_acc:.4f}, V={v_acc:.4f} | Best={best_val_acc:.4f} | LR={optimizer.param_groups[0]['lr']:.6f}")
     except KeyboardInterrupt:
-        print("\n[HÀNH ĐỘNG] Đã dừng huấn luyện thủ công bởi người dùng.")
+        print("Training stopped manually.")
 
-    print(f"\n✅ Hoàn tất! Best Accuracy đạt được: {best_val_acc:.4f}")
-    
-    # 4. Xuất Báo cáo & Đồ thị
-    print("\n--- Đang tạo báo cáo đánh giá ---")
+    # --- REPORTING ---
+    print("\n--- Generating Reports ---")
     try:
         import matplotlib.pyplot as plt
         import seaborn as sns
         from sklearn.metrics import confusion_matrix, classification_report
         
-        # A. Vẽ biểu đồ Accuracy & Loss
-        if len(history['train_acc']) > 0:
-            plt.figure(figsize=(12, 5))
-            plt.subplot(1, 2, 1)
-            plt.plot(history['train_acc'], label='Train Acc')
-            plt.plot(history['val_acc'], label='Val Acc')
-            plt.title('Model Accuracy')
-            plt.legend()
-            
-            plt.subplot(1, 2, 2)
-            plt.plot(history['train_loss'], label='Train Loss')
-            plt.plot(history['val_loss'], label='Val Loss')
-            plt.title('Model Loss')
-            plt.legend()
-            plt.savefig(history_img_path)
-            print(f"- Đã lưu biểu đồ: {history_img_path}")
+        # A. Plot History
+        plt.figure(figsize=(12, 5))
+        plt.subplot(1, 2, 1); plt.plot(history['train_acc'], label='Train'); plt.plot(history['val_acc'], label='Val'); plt.title('Accuracy'); plt.legend()
+        plt.subplot(1, 2, 2); plt.plot(history['train_loss'], label='Train'); plt.plot(history['val_loss'], label='Val'); plt.title('Loss'); plt.legend()
+        plt.savefig(history_img_path)
         
-        # B. Tạo Confusion Matrix
-        if os.path.exists(model_save_path):
-            model.load_state_dict(torch.load(model_save_path))
-            model.eval()
-            all_preds = []
-            all_labels = []
-            with torch.no_grad():
-                for x, y in val_loader:
-                    x = x.to(device)
-                    outputs = model(x)
-                    _, predicted = torch.max(outputs, 1)
-                    all_preds.extend(predicted.cpu().numpy())
-                    all_labels.extend(y.numpy())
-            
-            cm = confusion_matrix(all_labels, all_preds)
-            plt.figure(figsize=(20, 15))
-            sns.heatmap(cm, annot=False, cmap='Blues', xticklabels=id_to_word.values(), yticklabels=id_to_word.values())
-            plt.title('Confusion Matrix')
-            plt.xlabel('Predicted')
-            plt.ylabel('True')
-            plt.savefig(cm_img_path)
-            print(f"- Đã lưu biểu đồ: {cm_img_path}")
-            
-            # C. Xuất Classification Report
-            target_names = [id_to_word[i] for i in range(num_classes)]
-            report = classification_report(all_labels, all_preds, target_names=target_names)
-            with open(report_txt_path, 'w', encoding='utf-8') as f:
-                f.write(report)
-            print(f"- Đã lưu báo cáo: {report_txt_path}")
-        else:
-            print("Cảnh báo: Không tìm thấy model đã lưu để tạo Confusion Matrix.")
-            
+        # B. Confusion Matrix & Detailed Report
+        model.load_state_dict(torch.load(model_save_path))
+        model.eval()
+        preds, targets = [], []
+        with torch.no_grad():
+            for x, y in val_loader:
+                out = model(x.to(device))
+                _, p = torch.max(out, 1)
+                preds.extend(p.cpu().numpy()); targets.extend(y.numpy())
+        
+        cm = confusion_matrix(targets, preds)
+        plt.figure(figsize=(15, 12))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=id_to_word.values(), yticklabels=id_to_word.values())
+        plt.savefig(cm_img_path)
+        
+        report = classification_report(targets, preds, target_names=[id_to_word[i] for i in range(num_classes)])
+        with open(report_txt_path, 'w') as f: f.write(report)
+        print(f"Reports saved to {output_dir}")
     except Exception as e:
-        print(f"Cảnh báo: Không thể tạo báo cáo chi tiết (lỗi: {e}).")
+        print(f"Reporting failed: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--output', type=str, default=None, help='Thư mục lưu kết quả')
+    parser.add_argument('--output', type=str, default=None)
     args = parser.parse_args()
-    
     train(output_dir=args.output)
