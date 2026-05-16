@@ -75,20 +75,13 @@ class TGCN_Folder_Dataset(Dataset):
     def __getitem__(self, idx):
         try:
             seq = np.load(self.samples[idx])
-            
-            # --- ROBUST RESHAPE LOGIC ---
             if len(seq.shape) == 2:
-                # Nếu là (T, 225) -> Reshape về (T, 75, 3)
-                if seq.shape[1] == 225:
-                    seq = seq.reshape(-1, 75, 3)
-                # Nếu là (T, 150) -> Reshape về (T, 75, 2) và thêm chiều Z=0
+                if seq.shape[1] == 225: seq = seq.reshape(-1, 75, 3)
                 elif seq.shape[1] == 150:
                     seq = seq.reshape(-1, 75, 2)
                     z = np.zeros((seq.shape[0], 75, 1))
                     seq = np.concatenate([seq, z], axis=2)
-                # Nếu đã là 55 khớp X,Y (T, 110)
                 elif seq.shape[1] == 110:
-                    # Tạo mảng 75 khớp rỗng và nhét 55 khớp vào đúng vị trí TGCN_INDICES
                     new_seq = np.zeros((seq.shape[0], 75, 3))
                     temp_2d = seq.reshape(-1, 55, 2)
                     for i, real_idx in enumerate(TGCN_INDICES):
@@ -97,7 +90,6 @@ class TGCN_Folder_Dataset(Dataset):
             
             T = seq.shape[0]
             res_seq = np.zeros((T, 75, 3))
-            
             for i in range(T):
                 nose = seq[i, 0]
                 s1, s2 = seq[i, 11], seq[i, 12]
@@ -108,9 +100,7 @@ class TGCN_Folder_Dataset(Dataset):
                         if not np.all(seq[i, j] == 0):
                             res_seq[i, j] = (seq[i, j] - nose) / dist
             
-            # Bây giờ res_seq chắc chắn là (T, 75, 3)
             seq_55 = res_seq[:, TGCN_INDICES, :2]
-            
             if self.is_train and T > 5:
                 if np.random.rand() > 0.5:
                     fact = np.random.uniform(0.8, 1.2)
@@ -125,9 +115,7 @@ class TGCN_Folder_Dataset(Dataset):
             sampled_seq = seq_55[indices]
             seq_flat = sampled_seq.transpose(1, 0, 2).reshape(55, -1)
             return torch.FloatTensor(seq_flat), torch.tensor(self.labels[idx])
-        except Exception as e:
-            # Nếu file lỗi quá nặng, trả về mảng 0 để không dừng quá trình train
-            # print(f"Error loading {self.samples[idx]}: {e}")
+        except Exception:
             return torch.zeros((55, NUM_SAMPLES*2)), torch.tensor(self.labels[idx])
 
 def train(output_dir=None):
@@ -135,6 +123,7 @@ def train(output_dir=None):
     os.makedirs(output_dir, exist_ok=True)
         
     model_save_path = os.path.join(output_dir, 'best_tgcn_model_30.pth')
+    checkpoint_path = os.path.join(output_dir, 'latest_checkpoint.pth')
     history_img_path = os.path.join(output_dir, 'training_history.png')
     cm_img_path = os.path.join(output_dir, 'confusion_matrix.png')
     report_txt_path = os.path.join(output_dir, 'classification_report.txt')
@@ -155,8 +144,6 @@ def train(output_dir=None):
         for root, dirs, files in os.walk(KEYPOINTS_DIR):
             total_files += len([f for f in files if f.endswith('.npy')])
         print(f"📂 ✅ Tổng cộng tìm thấy {total_files} file keypoints (.npy) trong các thư mục con.")
-    else:
-        print(f"❌ KHÔNG tìm thấy thư mục: {KEYPOINTS_DIR}")
 
     train_dataset = TGCN_Folder_Dataset(label_map, is_train=True, balance_limit=100)
     val_dataset = TGCN_Folder_Dataset(label_map, is_train=False, balance_limit=100)
@@ -171,16 +158,30 @@ def train(output_dir=None):
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=8)
     criterion = nn.CrossEntropyLoss()
     
-    epochs = 80
+    # --- RESUME LOGIC ---
+    start_epoch = 0
     best_val_acc = 0
-    patience = 15
-    trigger_times = 0
     best_val_loss = float('inf')
+    trigger_times = 0
     history = {'train_acc': [], 'val_acc': [], 'train_loss': [], 'val_loss': []}
+
+    if os.path.exists(checkpoint_path):
+        print(f"♻️  Phát hiện checkpoint tại {checkpoint_path}. Đang khôi phục quá trình huấn luyện...")
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint['epoch'] + 1
+        best_val_acc = checkpoint['best_val_acc']
+        best_val_loss = checkpoint.get('best_val_loss', float('inf'))
+        history = checkpoint['history']
+        print(f"🚀 Tiếp tục từ Epoch {start_epoch}. Kỷ lục Acc cũ: {best_val_acc:.4f}")
+
+    epochs = 80
+    patience = 15
 
     print(f"Starting training on {device.type.upper()}...")
     try:
-        for epoch in range(epochs):
+        for epoch in range(start_epoch, epochs):
             model.train()
             train_loss, correct_train = 0, 0
             for x, y in tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}"):
@@ -211,11 +212,24 @@ def train(output_dir=None):
             history['train_loss'].append(train_loss/len(train_loader)); history['val_loss'].append(v_loss)
             
             scheduler.step(v_loss)
+            
+            # Save Best Model
             if v_acc > best_val_acc:
                 best_val_acc = v_acc
                 torch.save(model.state_dict(), model_save_path)
                 print(f" [SAVE] Model đạt Acc mới: {best_val_acc:.4f}")
 
+            # Save Checkpoint for Resume
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'best_val_acc': best_val_acc,
+                'best_val_loss': best_val_loss,
+                'history': history
+            }, checkpoint_path)
+
+            # Early Stopping check
             if v_loss < best_val_loss:
                 best_val_loss = v_loss
                 trigger_times = 0
