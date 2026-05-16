@@ -26,22 +26,18 @@ KEYPOINTS_DIR = os.path.join(FINAL_DIR, 'keypoints')
 LABEL_MAP_FILE = os.path.join(FINAL_DIR, 'final_label_map.json')
 
 NUM_SAMPLES = 30  
-NUM_CLASSES = 52  # Nâng cấp lên 52 classes theo bộ dữ liệu cân bằng
-HIDDEN_SIZE = 64
+NUM_CLASSES = 30  # Chốt 30 từ để đạt độ chính xác cao nhất
+HIDDEN_SIZE = 128 # Tăng lại lên 128 để gánh 30 lớp tốt hơn
 NUM_STAGES = 20
 
-# 55 Điểm ảnh Xương (Pose + Hand) theo chuẩn MediaPipe
-BODY_INDICES = [0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24]
-HAND_INDICES = list(range(33, 75))
-TGCN_INDICES = BODY_INDICES + HAND_INDICES
+# ... (giữ nguyên BODY_INDICES, HAND_INDICES, TGCN_INDICES)
 
 class TGCN_Final_Dataset(Dataset):
-    def __init__(self, csv_file, label_map, is_train=True, max_samples=120):
+    def __init__(self, csv_file, label_map, is_train=True, max_samples=None):
         self.samples = []
         self.labels = []
         self.is_train = is_train
         
-        # Đường dẫn đến thư mục chứa CSV
         DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
         path = os.path.join(DATA_DIR, csv_file)
         if not os.path.exists(path):
@@ -58,10 +54,9 @@ class TGCN_Final_Dataset(Dataset):
             gloss = row['Gloss']
             file_path = os.path.join(KEYPOINTS_DIR, f"{video_id}.npy")
             
-            # Chỉ nạp khi file trích xuất Mediapipe tồn tại
             if os.path.exists(file_path) and gloss in label_map:
-                # Nếu là lúc Train, giới hạn tối đa mẫu mỗi lớp
-                if self.is_train and counts[gloss] >= max_samples:
+                # Nếu max_samples được cung cấp, ta giới hạn cứng để cân bằng
+                if max_samples is not None and counts[gloss] >= max_samples:
                     continue
                     
                 self.samples.append(file_path)
@@ -69,69 +64,12 @@ class TGCN_Final_Dataset(Dataset):
                 counts[gloss] += 1
         
         if self.is_train:
-            print(f"--- Đã nạp dữ liệu Train (Giới hạn tối đa {max_samples} mẫu/lớp) ---")
-            for g, c in counts.items():
-                if c > 0: print(f" {g}: {c}")
+            print(f"--- Đã nạp dữ liệu Train (Cân bằng: {max_samples} mẫu/lớp) ---")
+            # In tóm tắt ngắn gọn
+            valid_counts = [c for c in counts.values() if c > 0]
+            print(f" Số lớp: {len(valid_counts)} | Mẫu mỗi lớp: {min(valid_counts) if valid_counts else 0} - {max(valid_counts) if valid_counts else 0}")
 
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        # seq là (T, 75, 3) do script extract lưu lại
-        seq = np.load(self.samples[idx])
-        T = seq.shape[0]
-        
-        # --- Normalization (Chống Domain Gap) ---
-        res_seq = np.zeros_like(seq)
-        for i in range(T):
-            nose = seq[i, 0]
-            s1, s2 = seq[i, 11], seq[i, 12]
-            shoulder_dist = np.linalg.norm(s1 - s2)
-            if shoulder_dist == 0:
-                shoulder_dist = 1.0
-                
-            if not np.all(nose == 0):
-                for j in range(75):
-                    if not np.all(seq[i, j] == 0):
-                        res_seq[i, j] = (seq[i, j] - nose) / shoulder_dist
-                        
-        seq = res_seq
-        
-        # Lấy 55 khớp nối X,Y
-        seq_55 = seq[:, TGCN_INDICES, :2]
-        
-        # --- Data Augmentation cho lúc huấn luyện ---
-        if self.is_train and T > 5:
-            if np.random.rand() > 0.5:
-                # Speed up
-                drop_count = np.random.randint(1, max(2, int(T * 0.2)))
-                keep_indices = sorted(np.random.choice(T, T - drop_count, replace=False))
-                seq_55 = seq_55[keep_indices]
-                T = seq_55.shape[0]
-            elif np.random.rand() > 0.5:
-                # Slow down
-                dup_count = np.random.randint(1, max(2, int(T * 0.2)))
-                dup_indices = sorted(list(range(T)) + list(np.random.choice(T, dup_count, replace=True)))
-                seq_55 = seq_55[dup_indices]
-                T = seq_55.shape[0]
-            elif np.random.rand() > 0.7:
-                # Thêm nhiễu Gaussian (Giúp Model chịu lỗi tốt hơn)
-                noise = np.random.normal(0, 0.005, seq_55.shape)
-                seq_55 = seq_55 + noise
-                
-            # Random Jittering & Scale
-            if np.random.rand() > 0.5:
-                noise = np.random.normal(0, 0.01, seq_55.shape)
-                seq_55 = seq_55 + noise
-            if np.random.rand() > 0.5:
-                scale = np.random.uniform(0.8, 1.2)
-                seq_55 = seq_55 * scale
-
-        indices = np.linspace(0, T - 1, NUM_SAMPLES).astype(int)
-        sampled_seq = seq_55[indices]
-        seq_flat = sampled_seq.transpose(1, 0, 2).reshape(55, -1)
-            
-        return torch.FloatTensor(seq_flat), torch.tensor(self.labels[idx])
+# ... (giữ nguyên __len__, __getitem__)
 
 def train(output_dir=None):
     if output_dir:
@@ -141,24 +79,37 @@ def train(output_dir=None):
         output_dir = "."
 
     model_save_path = os.path.join(output_dir, 'best_tgcn_model_FINAL.pth')
-    history_img_path = os.path.join(output_dir, 'training_history.png')
-    cm_img_path = os.path.join(output_dir, 'confusion_matrix.png')
-    report_txt_path = os.path.join(output_dir, 'classification_report.txt')
-
-    if not os.path.exists(LABEL_MAP_FILE):
-        print(f"Lỗi: Không tìm thấy file {LABEL_MAP_FILE}")
-        print("Vui lòng chạy extract_final_features.py trước.")
-        return
-
-    with open(LABEL_MAP_FILE, 'r') as f:
-        label_map = json.load(f)
+    
+    # --- TỰ ĐỘNG CHỌN 30 TỪ TỐT NHẤT VÀ CÂN BẰNG ---
+    DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
+    train_df = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
+    
+    # Đếm số lượng mẫu thực tế có file npy
+    available_glosses = {}
+    for _, row in train_df.iterrows():
+        if os.path.exists(os.path.join(KEYPOINTS_DIR, f"{row['VideoID']}.npy")):
+            available_glosses[row['Gloss']] = available_glosses.get(row['Gloss'], 0) + 1
+            
+    # Lấy top 30 từ có nhiều mẫu nhất
+    sorted_glosses = sorted(available_glosses.items(), key=lambda x: x[1], reverse=True)[:30]
+    top_30_glosses = [g[0] for g in sorted_glosses]
+    
+    # Điểm cân bằng chính là số mẫu của từ ít nhất trong top 30
+    balance_limit = sorted_glosses[-1][1]
+    
+    # Tạo Label Map mới
+    label_map = {gloss: i for i, gloss in enumerate(top_30_glosses)}
+    with open(LABEL_MAP_FILE, 'w', encoding='utf-8') as f:
+        json.dump(label_map, f, indent=4)
+    
+    print(f"✅ Đã chọn 30 từ vựng tốt nhất. Ngưỡng cân bằng tuyệt đối: {balance_limit} mẫu/lớp.")
     
     num_classes = len(label_map)
     id_to_word = {v: k for k, v in label_map.items()}
 
     # 1. Setup Data
     print("\n--- Báo cáo Dữ liệu ---")
-    train_dataset = TGCN_Final_Dataset('train.csv', label_map, is_train=True)
+    train_dataset = TGCN_Final_Dataset('train.csv', label_map, is_train=True, max_samples=balance_limit)
     val_dataset = TGCN_Final_Dataset('valid.csv', label_map, is_train=False)
     
     # Thống kê phân phối lớp

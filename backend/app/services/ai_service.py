@@ -34,18 +34,16 @@ class AIService:
         
         # Params
         self.num_samples = 30
-        self.num_classes = 52  # Giữ nguyên 52 lớp
-        self.hidden_size = 64 # Lùi về 64 để khớp với model 3.4MB
+        self.num_classes = 25  # Quay lại 25 lớp cũ
+        self.hidden_size = 64 
         self.num_stages = 20
         
         self.load_model()
         self.load_labels()
 
     def load_labels(self):
-        # Ưu tiên dùng file label_map mới nếu có
-        label_path = os.path.join(BACKEND_DIR, "..", "training", "final_label_map.json")
-        if not os.path.exists(label_path):
-            label_path = os.path.join(BACKEND_DIR, "data", "label_map.json")
+        # Sử dụng label_map.json cũ (25 lớp)
+        label_path = os.path.join(BACKEND_DIR, "data", "label_map.json")
             
         try:
             with open(label_path, 'r', encoding='utf-8') as f:
@@ -56,17 +54,15 @@ class AIService:
             print(f"Error loading label map: {e}")
 
     def load_model(self):
-        # Ưu tiên load model FINAL nếu có
-        weights_path = os.path.join(BACKEND_DIR, "..", "training", "best_tgcn_model_FINAL.pth")
-        if not os.path.exists(weights_path):
-            weights_path = os.path.join(BACKEND_DIR, "weights", "best_tgcn_model.pth")
+        # Load model 25 lớp cũ
+        weights_path = os.path.join(BACKEND_DIR, "weights", "best_tgcn_model.pth")
             
         try:
             self.model = GCN_muti_att(
                 input_feature=self.num_samples*2, 
                 hidden_feature=self.hidden_size, 
                 num_class=self.num_classes, 
-                p_dropout=0.5, 
+                p_dropout=0.3, # Model cũ dùng dropout 0.3
                 num_stage=self.num_stages
             )
             # LUÔN ĐƯA VỀ EVAL TRƯỚC để tránh lỗi BatchNorm nếu load weights thất bại
