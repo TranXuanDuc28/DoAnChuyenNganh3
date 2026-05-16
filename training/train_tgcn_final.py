@@ -43,6 +43,7 @@ class TGCN_Folder_Dataset(Dataset):
         max_class_count = 0
         word_data = {}
         
+        
         for word, idx in label_map.items():
             word_dir = os.path.join(KEYPOINTS_DIR, word)
             if os.path.exists(word_dir):
@@ -123,6 +124,17 @@ def train(output_dir=None):
         label_map = json.load(f)
     num_classes = len(label_map)
     id_to_word = {v: k for k, v in label_map.items()}
+
+    # --- DIAGNOSTICS ---
+    print(f"🔍 Working Directory: {os.getcwd()}")
+    print(f"🔍 Keypoints Path: {KEYPOINTS_DIR}")
+    if os.path.exists(KEYPOINTS_DIR):
+        total_files = 0
+        for root, dirs, files in os.walk(KEYPOINTS_DIR):
+            total_files += len([f for f in files if f.endswith('.npy')])
+        print(f"📂 ✅ Tổng cộng tìm thấy {total_files} file keypoints (.npy) trong các thư mục con.")
+    else:
+        print(f"❌ KHÔNG tìm thấy thư mục: {KEYPOINTS_DIR}")
 
     train_dataset = TGCN_Folder_Dataset(label_map, is_train=True, balance_limit=100)
     val_dataset = TGCN_Folder_Dataset(label_map, is_train=False, balance_limit=100)
