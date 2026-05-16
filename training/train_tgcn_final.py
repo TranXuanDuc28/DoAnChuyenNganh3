@@ -75,10 +75,15 @@ def train(output_dir=None):
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         print(f"📁 Kết quả sẽ được lưu vào: {output_dir}")
+        model_save_path = os.path.join(output_dir, 'best_tgcn_model_FINAL.pth')
     else:
         output_dir = "."
+        model_save_path = os.path.join(output_dir, 'best_tgcn_model_FINAL.pth')
 
-    model_save_path = os.path.join(output_dir, 'best_tgcn_model_FINAL.pth')
+    label_map_save_path = os.path.join(output_dir, 'final_label_map.json') # Lưu vào Drive
+    history_img_path = os.path.join(output_dir, 'training_history.png')
+    cm_img_path = os.path.join(output_dir, 'confusion_matrix.png')
+    report_txt_path = os.path.join(output_dir, 'classification_report.txt')
     
     # --- DANH SÁCH 30 TỪ VỰNG "VÀNG" ĐỂ GIAO TIẾP ---
     ESSENTIAL_30 = [
@@ -93,10 +98,12 @@ def train(output_dir=None):
         "SLEEP", "HAPPY"                 # Cảm xúc/Nhu cầu
     ]
     
-    # Tạo Label Map cố định
+    # Tạo Label Map cố định và LƯU VÀO ĐÚNG THƯ MỤC OUTPUT
     label_map = {gloss: i for i, gloss in enumerate(ESSENTIAL_30)}
-    with open(LABEL_MAP_FILE, 'w', encoding='utf-8') as f:
+    with open(label_map_save_path, 'w', encoding='utf-8') as f:
         json.dump(label_map, f, indent=4)
+    
+    print(f"✅ Đã lưu Label Map vào: {label_map_save_path}")
     
     # Đếm số lượng mẫu hiện có cho danh sách này
     DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')

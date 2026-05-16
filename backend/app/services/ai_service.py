@@ -87,9 +87,9 @@ class AIService:
         prompt = (
             f"Bạn là một chuyên gia dịch thuật Ngôn ngữ ký hiệu (ASL). Tôi có chuỗi từ khóa (Gloss): [{gloss_text}].\n"
             f"Nhiệm vụ: Chuyển chuỗi trên thành MỘT CÂU {lang_name} giao tiếp tự nhiên nhất.\n"
-            "- CHÚ Ý: Nếu trong chuỗi không có từ chỉ đại từ (như YOU, ME, I), đừng tự ý thêm 'Tôi' hoặc 'Bạn' làm chủ ngữ trừ khi ngữ cảnh bắt buộc phải có để câu có nghĩa.\n"
-            "- Ưu tiên dịch ở dạng trung tính (VD: 'Mẹ đang nấu nước' thay vì 'Mẹ tôi đang nấu nước').\n"
-            "- CHỈ trả về nội dung câu đã dịch, không giải thích."
+            "- Có thể thêm từ nối, trợ từ, hoặc danh từ phù hợp ngữ cảnh (VD: DRINK -> uống nước, EAT -> ăn cơm).\n"
+            "- Phải phù hợp với văn phong giao tiếp hàng ngày.\n"
+            "- CHỈ trả về nội dung câu đã dịch, không giải thích, không thêm ký tự lạ."
         )
         try:
             # Chạy blocking call trong thread riêng
