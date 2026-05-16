@@ -69,7 +69,57 @@ class TGCN_Final_Dataset(Dataset):
             valid_counts = [c for c in counts.values() if c > 0]
             print(f" Số lớp: {len(valid_counts)} | Mẫu mỗi lớp: {min(valid_counts) if valid_counts else 0} - {max(valid_counts) if valid_counts else 0}")
 
-# ... (giữ nguyên __len__, __getitem__)
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        # seq là (T, 75, 3) do script extract lưu lại
+        seq = np.load(self.samples[idx])
+        T = seq.shape[0]
+        
+        # --- Normalization (Chống Domain Gap) ---
+        res_seq = np.zeros_like(seq)
+        for i in range(T):
+            nose = seq[i, 0]
+            s1, s2 = seq[i, 11], seq[i, 12]
+            shoulder_dist = np.linalg.norm(s1 - s2)
+            if shoulder_dist == 0:
+                shoulder_dist = 1.0
+                
+            if not np.all(nose == 0):
+                for j in range(75):
+                    if not np.all(seq[i, j] == 0):
+                        res_seq[i, j] = (seq[i, j] - nose) / shoulder_dist
+                        
+        seq = res_seq
+        
+        # Lấy 55 khớp nối X,Y
+        seq_55 = seq[:, TGCN_INDICES, :2]
+        
+        # --- Data Augmentation cho lúc huấn luyện ---
+        if self.is_train and T > 5:
+            if np.random.rand() > 0.5:
+                # Speed up
+                drop_count = np.random.randint(1, max(2, int(T * 0.2)))
+                keep_indices = sorted(np.random.choice(T, T - drop_count, replace=False))
+                seq_55 = seq_55[keep_indices]
+                T = seq_55.shape[0]
+            elif np.random.rand() > 0.5:
+                # Slow down
+                dup_count = np.random.randint(1, max(2, int(T * 0.2)))
+                dup_indices = sorted(list(range(T)) + list(np.random.choice(T, dup_count, replace=True)))
+                seq_55 = seq_55[dup_indices]
+                T = seq_55.shape[0]
+            elif np.random.rand() > 0.7:
+                # Thêm nhiễu Gaussian
+                noise = np.random.normal(0, 0.005, seq_55.shape)
+                seq_55 = seq_55 + noise
+                
+        indices = np.linspace(0, T - 1, NUM_SAMPLES).astype(int)
+        sampled_seq = seq_55[indices]
+        seq_flat = sampled_seq.transpose(1, 0, 2).reshape(55, -1)
+            
+        return torch.FloatTensor(seq_flat), torch.tensor(self.labels[idx])
 
 def train(output_dir=None):
     if output_dir:
@@ -130,14 +180,24 @@ def train(output_dir=None):
     num_classes = len(label_map)
     id_to_word = {v: k for k, v in label_map.items()}
 
-    # 1. Setup Data
-    print("\n--- Báo cáo Dữ liệu ---")
-    train_dataset = TGCN_Final_Dataset('train.csv', label_map, is_train=True, max_samples=balance_limit)
-    val_dataset = TGCN_Final_Dataset('valid.csv', label_map, is_train=False)
-    
-    # Thống kê phân phối lớp
-    class_counts = {}
-    for label_idx in train_dataset.labels + val_dataset.labels:
+    # 0. Kiểm tra thư mục dữ liệu (Debug cho Colab)
+    print(f"🔍 Thư mục làm việc: {os.getcwd()}")
+    print(f"🔍 FINAL_DIR: {FINAL_DIR}")
+    print(f"🔍 KEYPOINTS_DIR: {KEYPOINTS_DIR}")
+    if os.path.exists(KEYPOINTS_DIR):
+        num_files = len([f for f in os.listdir(KEYPOINTS_DIR) if f.endswith('.npy')])
+        print(f"📂 Số file .npy tìm thấy trong keypoints/: {num_files}")
+    else:
+        print(f"❌ Lỗi: Thư mục {KEYPOINTS_DIR} không tồn tại!")
+        
+    DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
+    csv_path = os.path.join(DATA_DIR, 'train.csv')
+    if os.path.exists(csv_path):
+        train_df = pd.read_csv(csv_path)
+        print(f"📊 Đã nạp {csv_path}. Tổng số dòng: {len(train_df)}")
+    else:
+        print(f"❌ Lỗi: Không thấy file {csv_path}")
+        return
         word = id_to_word[label_idx]
         class_counts[word] = class_counts.get(word, 0) + 1
     
