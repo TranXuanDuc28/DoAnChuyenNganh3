@@ -27,7 +27,7 @@ LABEL_MAP_FILE = os.path.join(FINAL_DIR, 'final_label_map.json')
 
 NUM_SAMPLES = 30  
 NUM_CLASSES = 52  # Nâng cấp lên 52 classes theo bộ dữ liệu cân bằng
-HIDDEN_SIZE = 64
+HIDDEN_SIZE = 128
 NUM_STAGES = 20
 
 # 55 Điểm ảnh Xương (Pose + Hand) theo chuẩn MediaPipe
@@ -189,7 +189,7 @@ def train(output_dir=None):
     # 2. Setup Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = GCN_muti_att(input_feature=NUM_SAMPLES*2, hidden_feature=HIDDEN_SIZE, 
-                         num_class=num_classes, p_dropout=0.3, num_stage=NUM_STAGES)
+                         num_class=num_classes, p_dropout=0.5, num_stage=NUM_STAGES)
     
     # --- TỰ ĐỘNG NẠP MODEL CŨ ĐỂ TRAIN TIẾP (RESUME) ---
     # Ưu tiên tìm ở output_dir, nếu không thấy thì tìm ở thư mục hiện tại
@@ -221,6 +221,8 @@ def train(output_dir=None):
 
     # 3. Training
     optimizer = optim.Adam(model.parameters(), lr=0.001)
+    # Thêm Scheduler để giảm LR khi Val Loss không giảm
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
     criterion = nn.CrossEntropyLoss()
     epochs = 100
     history = {
@@ -263,18 +265,22 @@ def train(output_dir=None):
                     correct_val += (predicted == y).sum().item()
                     
             val_acc = correct_val / len(val_dataset)
+            avg_val_loss = val_loss / len(val_loader)
+            
+            # Cập nhật Scheduler dựa trên val_loss
+            scheduler.step(avg_val_loss)
             
             # Lưu history
             history['train_acc'].append(train_acc)
             history['val_acc'].append(val_acc)
             history['train_loss'].append(train_loss / len(train_loader))
-            history['val_loss'].append(val_loss / len(val_loader))
+            history['val_loss'].append(avg_val_loss)
             
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
                 torch.save(model.state_dict(), model_save_path)
                 
-            print(f"-> KQ Epoch [{epoch+1:03d}/{epochs}]: Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} (Best: {best_val_acc:.4f})")
+            print(f"-> KQ Epoch [{epoch+1:03d}/{epochs}]: Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} (Best: {best_val_acc:.4f}) | LR: {optimizer.param_groups[0]['lr']:.6f}")
     except KeyboardInterrupt:
         print("\n[HÀNH ĐỘNG] Đã dừng huấn luyện thủ công bởi người dùng.")
 
