@@ -80,13 +80,26 @@ class TGCN_Folder_Dataset(Dataset):
 
     def __getitem__(self, idx):
         seq = np.load(self.samples[idx])
+        
+        # --- FIX: Đảm bảo dữ liệu luôn ở dạng (T, 75, 3) ---
+        if len(seq.shape) == 2:
+            if seq.shape[1] == 225:
+                seq = seq.reshape(-1, 75, 3)
+            else:
+                # Nếu không phải 225, có thể là do trích xuất lỗi hoặc định dạng khác
+                # Ta tạo một mảng giả để tránh crash nếu cần, hoặc skip
+                pass
+        
         T = seq.shape[0]
         res_seq = np.zeros_like(seq)
         for i in range(T):
+            # Khớp mũi (0), vai trái (11), vai phải (12)
             nose = seq[i, 0]
             s1, s2 = seq[i, 11], seq[i, 12]
             dist = np.linalg.norm(s1 - s2)
             if dist == 0: dist = 1.0
+            
+            # Chỉ chuẩn hóa nếu có tọa độ mũi (tránh frame rỗng)
             if not np.all(nose == 0):
                 for j in range(75):
                     if not np.all(seq[i, j] == 0):
