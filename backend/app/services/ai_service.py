@@ -34,24 +34,22 @@ class AIService:
         
         # Params
         self.num_samples = 30
-        self.num_classes = 25  # Quay lại 25 lớp cũ
-        self.hidden_size = 64 
+        self.num_classes = 10 # Default, will be updated by load_labels
+        self.hidden_size = 128 
         self.num_stages = 20
         
-        self.load_model()
         self.load_labels()
+        self.load_model()
 
     def load_labels(self):
         # Sử dụng label_map.json cũ (25 lớp)
         label_path = os.path.join(BACKEND_DIR, "data", "label_map.json")
             
-        try:
-            with open(label_path, 'r', encoding='utf-8') as f:
-                label_map = json.load(f)
-            # Chuyển label_map sang id_to_word
-            self.id_to_word = {int(idx): word.upper() for word, idx in label_map.items()}
-        except Exception as e:
-            print(f"Error loading label map: {e}")
+        # Load label map
+        with open(label_path, 'r', encoding='utf-8') as f:
+            self.label_map = json.load(f)
+        self.id_to_word = {int(v): k for k, v in self.label_map.items()}
+        self.num_classes = len(self.label_map)
 
     def load_model(self):
         # Load model 25 lớp cũ
@@ -62,7 +60,7 @@ class AIService:
                 input_feature=self.num_samples*2, 
                 hidden_feature=self.hidden_size, 
                 num_class=self.num_classes, 
-                p_dropout=0.3, # Model cũ dùng dropout 0.3
+                p_dropout=0.5, # Cập nhật 0.5 cho model mới
                 num_stage=self.num_stages
             )
             # LUÔN ĐƯA VỀ EVAL TRƯỚC để tránh lỗi BatchNorm nếu load weights thất bại

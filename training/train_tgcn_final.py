@@ -184,21 +184,30 @@ def train(output_dir=None):
                 count += 1
         available_counts[gloss] = count
     
-    # --- LỌC CÁC TỪ TRÊN 90 MẪU THEO YÊU CẦU ---
-    MIN_THRESHOLD = 90
-    QUALIFIED_WORDS = [word for word, count in available_counts.items() if count >= MIN_THRESHOLD]
+    # --- CHẾ ĐỘ 30 TỪ VỰNG THIẾT YẾU ---
+    QUALIFIED_WORDS = ESSENTIAL_30 
+    TARGET_SAMPLES = 100 # Mục tiêu lý tưởng
     
-    # Tạo lại Label Map chỉ với các từ đạt chuẩn
+    # Tạo lại Label Map với đầy đủ 30 từ
     label_map = {gloss: i for i, gloss in enumerate(QUALIFIED_WORDS)}
     with open(label_map_save_path, 'w', encoding='utf-8') as f:
         json.dump(label_map, f, indent=4)
         
-    # Tính lại ngưỡng cân bằng mới
+    # Tính ngưỡng cân bằng thực tế (min của tất cả 30 từ)
     valid_counts = [available_counts[w] for w in QUALIFIED_WORDS]
     balance_limit = min(valid_counts) if valid_counts else 0
     
-    print(f"🚀 Chế độ huấn luyện chất lượng cao (>= {MIN_THRESHOLD} mẫu).")
-    print(f"📊 Đã chọn {len(QUALIFIED_WORDS)} từ đạt chuẩn. Ngưỡng cân bằng: {balance_limit} mẫu/lớp.")
+    print(f"🚀 Đã kích hoạt bộ 30 từ vựng Giao tiếp Thiết yếu.")
+    print(f"📊 Ngưỡng cân bằng hiện tại: {balance_limit} mẫu/lớp (do từ thấp nhất quyết định).")
+    
+    print("\n📝 DANH SÁCH CẦN QUAY THÊM VIDEO (Mục tiêu 100 mẫu/lớp):")
+    print(f"{'Từ vựng':<15} | {'Hiện có':<10} | {'Cần thêm':<10} | {'Trạng thái'}")
+    print("-" * 55)
+    for word in QUALIFIED_WORDS:
+        count = available_counts[word]
+        needed = max(0, TARGET_SAMPLES - count)
+        status = "✅ Đạt" if needed == 0 else f"⚠️ Thiếu {needed}"
+        print(f"{word:<15} | {count:<10} | {needed:<10} | {status}")
     
     num_classes = len(label_map)
     id_to_word = {v: k for k, v in label_map.items()}

@@ -1,0 +1,12 @@
+{
+    "YOU": 0,
+    "LIKE": 1,
+    "WHERE": 2,
+    "BAD": 3,
+    "YES": 4,
+    "MOTHER": 5,
+    "FRIEND": 6,
+    "NOW": 7,
+    "FINISH": 8,
+    "SLEEP": 9
+}
