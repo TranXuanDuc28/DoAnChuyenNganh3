@@ -8,6 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 import sys
+import argparse
 
 # Constants
 FINAL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -132,7 +133,18 @@ class TGCN_Final_Dataset(Dataset):
             
         return torch.FloatTensor(seq_flat), torch.tensor(self.labels[idx])
 
-def train():
+def train(output_dir=None):
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"📁 Kết quả sẽ được lưu vào: {output_dir}")
+    else:
+        output_dir = "."
+
+    model_save_path = os.path.join(output_dir, 'best_tgcn_model_FINAL.pth')
+    history_img_path = os.path.join(output_dir, 'training_history.png')
+    cm_img_path = os.path.join(output_dir, 'confusion_matrix.png')
+    report_txt_path = os.path.join(output_dir, 'classification_report.txt')
+
     if not os.path.exists(LABEL_MAP_FILE):
         print(f"Lỗi: Không tìm thấy file {LABEL_MAP_FILE}")
         print("Vui lòng chạy extract_final_features.py trước.")
@@ -180,11 +192,13 @@ def train():
                          num_class=num_classes, p_dropout=0.3, num_stage=NUM_STAGES)
     
     # --- TỰ ĐỘNG NẠP MODEL CŨ ĐỂ TRAIN TIẾP (RESUME) ---
-    MODEL_PATH = 'best_tgcn_model_FINAL.pth'
-    if os.path.exists(MODEL_PATH):
+    # Ưu tiên tìm ở output_dir, nếu không thấy thì tìm ở thư mục hiện tại
+    load_path = model_save_path if os.path.exists(model_save_path) else 'best_tgcn_model_FINAL.pth'
+    
+    if os.path.exists(load_path):
         try:
-            model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-            print(f"🔄 Đã tìm thấy model cũ. Đang nạp để huấn luyện tiếp tục...")
+            model.load_state_dict(torch.load(load_path, map_location=device))
+            print(f"🔄 Đã tìm thấy model cũ tại {load_path}. Đang nạp để huấn luyện tiếp tục...")
             # Kiểm tra độ chính xác cũ để cập nhật best_val_acc
             model.to(device)
             model.eval()
@@ -258,7 +272,7 @@ def train():
             
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
-                torch.save(model.state_dict(), 'best_tgcn_model_FINAL.pth')
+                torch.save(model.state_dict(), model_save_path)
                 
             print(f"-> KQ Epoch [{epoch+1:03d}/{epochs}]: Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} (Best: {best_val_acc:.4f})")
     except KeyboardInterrupt:
@@ -274,52 +288,60 @@ def train():
         from sklearn.metrics import confusion_matrix, classification_report
         
         # A. Vẽ biểu đồ Accuracy & Loss
-        plt.figure(figsize=(12, 5))
-        plt.subplot(1, 2, 1)
-        plt.plot(history['train_acc'], label='Train Acc')
-        plt.plot(history['val_acc'], label='Val Acc')
-        plt.title('Model Accuracy')
-        plt.legend()
-        
-        plt.subplot(1, 2, 2)
-        plt.plot(history['train_loss'], label='Train Loss')
-        plt.plot(history['val_loss'], label='Val Loss')
-        plt.title('Model Loss')
-        plt.legend()
-        plt.savefig('training_history.png')
-        print("- Đã lưu biểu đồ: training_history.png")
+        if len(history['train_acc']) > 0:
+            plt.figure(figsize=(12, 5))
+            plt.subplot(1, 2, 1)
+            plt.plot(history['train_acc'], label='Train Acc')
+            plt.plot(history['val_acc'], label='Val Acc')
+            plt.title('Model Accuracy')
+            plt.legend()
+            
+            plt.subplot(1, 2, 2)
+            plt.plot(history['train_loss'], label='Train Loss')
+            plt.plot(history['val_loss'], label='Val Loss')
+            plt.title('Model Loss')
+            plt.legend()
+            plt.savefig(history_img_path)
+            print(f"- Đã lưu biểu đồ: {history_img_path}")
         
         # B. Tạo Confusion Matrix
-        model.load_state_dict(torch.load('best_tgcn_model_FINAL.pth'))
-        model.eval()
-        all_preds = []
-        all_labels = []
-        with torch.no_grad():
-            for x, y in val_loader:
-                x = x.to(device)
-                outputs = model(x)
-                _, predicted = torch.max(outputs, 1)
-                all_preds.extend(predicted.cpu().numpy())
-                all_labels.extend(y.numpy())
-        
-        cm = confusion_matrix(all_labels, all_preds)
-        plt.figure(figsize=(20, 15))
-        sns.heatmap(cm, annot=False, cmap='Blues', xticklabels=id_to_word.values(), yticklabels=id_to_word.values())
-        plt.title('Confusion Matrix')
-        plt.xlabel('Predicted')
-        plt.ylabel('True')
-        plt.savefig('confusion_matrix.png')
-        print("- Đã lưu biểu đồ: confusion_matrix.png")
-        
-        # C. Xuất Classification Report
-        target_names = [id_to_word[i] for i in range(num_classes)]
-        report = classification_report(all_labels, all_preds, target_names=target_names)
-        with open('classification_report.txt', 'w', encoding='utf-8') as f:
-            f.write(report)
-        print("- Đã lưu báo cáo: classification_report.txt")
-        
-    except ImportError:
-        print("Cảnh báo: Không thể tạo biểu đồ do thiếu thư viện (matplotlib, seaborn, sklearn).")
+        if os.path.exists(model_save_path):
+            model.load_state_dict(torch.load(model_save_path))
+            model.eval()
+            all_preds = []
+            all_labels = []
+            with torch.no_grad():
+                for x, y in val_loader:
+                    x = x.to(device)
+                    outputs = model(x)
+                    _, predicted = torch.max(outputs, 1)
+                    all_preds.extend(predicted.cpu().numpy())
+                    all_labels.extend(y.numpy())
+            
+            cm = confusion_matrix(all_labels, all_preds)
+            plt.figure(figsize=(20, 15))
+            sns.heatmap(cm, annot=False, cmap='Blues', xticklabels=id_to_word.values(), yticklabels=id_to_word.values())
+            plt.title('Confusion Matrix')
+            plt.xlabel('Predicted')
+            plt.ylabel('True')
+            plt.savefig(cm_img_path)
+            print(f"- Đã lưu biểu đồ: {cm_img_path}")
+            
+            # C. Xuất Classification Report
+            target_names = [id_to_word[i] for i in range(num_classes)]
+            report = classification_report(all_labels, all_preds, target_names=target_names)
+            with open(report_txt_path, 'w', encoding='utf-8') as f:
+                f.write(report)
+            print(f"- Đã lưu báo cáo: {report_txt_path}")
+        else:
+            print("Cảnh báo: Không tìm thấy model đã lưu để tạo Confusion Matrix.")
+            
+    except Exception as e:
+        print(f"Cảnh báo: Không thể tạo báo cáo chi tiết (lỗi: {e}).")
 
 if __name__ == "__main__":
-    train()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--output', type=str, default=None, help='Thư mục lưu kết quả')
+    args = parser.parse_args()
+    
+    train(output_dir=args.output)
