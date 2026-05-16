@@ -139,6 +139,10 @@ def train(output_dir=None):
     
     epochs = 80
     best_val_acc = 0
+    patience = 15 # Dừng sau 15 epoch nếu không cải thiện
+    trigger_times = 0
+    best_val_loss = float('inf')
+    
     history = {'train_acc': [], 'val_acc': [], 'train_loss': [], 'val_loss': []}
 
     print(f"Starting training on {device.type.upper()}...")
@@ -170,15 +174,28 @@ def train(output_dir=None):
             
             t_acc, v_acc = correct_train/len(train_dataset), correct_val/len(val_dataset)
             v_loss = val_loss/len(val_loader)
+            
             history['train_acc'].append(t_acc); history['val_acc'].append(v_acc)
             history['train_loss'].append(train_loss/len(train_loader)); history['val_loss'].append(v_loss)
             
             scheduler.step(v_loss)
+            
+            # --- CƠ CHẾ EARLY STOPPING & SAVE BEST ---
             if v_acc > best_val_acc:
                 best_val_acc = v_acc
                 torch.save(model.state_dict(), model_save_path)
+                print(f" [SAVE] Model đạt Acc mới: {best_val_acc:.4f}")
+
+            if v_loss < best_val_loss:
+                best_val_loss = v_loss
+                trigger_times = 0
+            else:
+                trigger_times += 1
+                if trigger_times >= patience:
+                    print(f"\n[EARLY STOP] Loss không giảm sau {patience} epoch. Dừng huấn luyện để tránh Overfitting.")
+                    break
             
-            print(f" Acc: T={t_acc:.4f}, V={v_acc:.4f} | Best={best_val_acc:.4f} | LR={optimizer.param_groups[0]['lr']:.6f}")
+            print(f" Acc: T={t_acc:.4f}, V={v_acc:.4f} | Loss: V={v_loss:.4f} | Patience: {trigger_times}/{patience}")
     except KeyboardInterrupt:
         print("Training stopped manually.")
 
