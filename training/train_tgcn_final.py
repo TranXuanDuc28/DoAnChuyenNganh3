@@ -124,8 +124,8 @@ def train(output_dir=None):
     num_classes = len(label_map)
     id_to_word = {v: k for k, v in label_map.items()}
 
-    train_dataset = TGCN_Folder_Dataset(label_map, is_train=True, balance_limit=150)
-    val_dataset = TGCN_Folder_Dataset(label_map, is_train=False, balance_limit=150)
+    train_dataset = TGCN_Folder_Dataset(label_map, is_train=True, balance_limit=100)
+    val_dataset = TGCN_Folder_Dataset(label_map, is_train=False, balance_limit=100)
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
     
