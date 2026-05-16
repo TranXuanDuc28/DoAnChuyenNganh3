@@ -177,7 +177,6 @@ def train(output_dir=None):
     
     available_counts = {}
     for gloss in ESSENTIAL_30:
-        # Lọc các VideoID có file npy tồn tại
         count = 0
         gloss_df = train_df[train_df['Gloss'] == gloss]
         for _, row in gloss_df.iterrows():
@@ -185,13 +184,21 @@ def train(output_dir=None):
                 count += 1
         available_counts[gloss] = count
     
-    # Tìm ngưỡng cân bằng (lấy từ có ít mẫu nhất nhưng tối thiểu 50)
-    valid_counts = [c for c in available_counts.values() if c > 0]
+    # --- LỌC CÁC TỪ TRÊN 90 MẪU THEO YÊU CẦU ---
+    MIN_THRESHOLD = 90
+    QUALIFIED_WORDS = [word for word, count in available_counts.items() if count >= MIN_THRESHOLD]
+    
+    # Tạo lại Label Map chỉ với các từ đạt chuẩn
+    label_map = {gloss: i for i, gloss in enumerate(QUALIFIED_WORDS)}
+    with open(label_map_save_path, 'w', encoding='utf-8') as f:
+        json.dump(label_map, f, indent=4)
+        
+    # Tính lại ngưỡng cân bằng mới
+    valid_counts = [available_counts[w] for w in QUALIFIED_WORDS]
     balance_limit = min(valid_counts) if valid_counts else 0
     
-    print(f"🚀 Đã thiết lập bộ 30 từ vựng Giao tiếp Thiết yếu.")
-    print(f"📊 Ngưỡng cân bằng hiện tại: {balance_limit} mẫu/lớp.")
-    print("⚠️ Cần bổ sung thêm video cho các từ có số mẫu thấp để nâng ngưỡng này lên.")
+    print(f"🚀 Chế độ huấn luyện chất lượng cao (>= {MIN_THRESHOLD} mẫu).")
+    print(f"📊 Đã chọn {len(QUALIFIED_WORDS)} từ đạt chuẩn. Ngưỡng cân bằng: {balance_limit} mẫu/lớp.")
     
     num_classes = len(label_map)
     id_to_word = {v: k for k, v in label_map.items()}
