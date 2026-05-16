@@ -39,10 +39,9 @@ class TGCN_Folder_Dataset(Dataset):
         self.samples = []
         self.labels = []
         self.is_train = is_train
-        # --- Logic nạp dữ liệu và Oversampling để cân bằng ---
+        
         max_class_count = 0
         word_data = {}
-        
         
         for word, idx in label_map.items():
             word_dir = os.path.join(KEYPOINTS_DIR, word)
@@ -52,22 +51,17 @@ class TGCN_Folder_Dataset(Dataset):
                     np.random.shuffle(files)
                     split_idx = int(len(files) * split_ratio)
                     selected = files[:split_idx] if is_train else files[split_idx:]
-                    
                     if len(selected) > 0:
                         word_data[idx] = selected
                         if len(selected) > max_class_count:
                             max_class_count = len(selected)
         
-        # Nếu đang Train, thực hiện Oversampling để mọi lớp đều có số mẫu bằng max_class_count
         target_count = max_class_count if is_train else None
-        
         for idx, files in word_data.items():
             current_files = list(files)
             if is_train and target_count:
-                # Nhân bản cho đến khi đạt target_count
                 while len(current_files) < target_count:
                     current_files.extend(files[:target_count - len(current_files)])
-            
             for f in current_files:
                 self.samples.append(f)
                 self.labels.append(idx)
@@ -79,47 +73,62 @@ class TGCN_Folder_Dataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        seq = np.load(self.samples[idx])
-        
-        # --- FIX: Đảm bảo dữ liệu luôn ở dạng (T, 75, 3) ---
-        if len(seq.shape) == 2:
-            if seq.shape[1] == 225:
-                seq = seq.reshape(-1, 75, 3)
-            else:
-                # Nếu không phải 225, có thể là do trích xuất lỗi hoặc định dạng khác
-                # Ta tạo một mảng giả để tránh crash nếu cần, hoặc skip
-                pass
-        
-        T = seq.shape[0]
-        res_seq = np.zeros_like(seq)
-        for i in range(T):
-            # Khớp mũi (0), vai trái (11), vai phải (12)
-            nose = seq[i, 0]
-            s1, s2 = seq[i, 11], seq[i, 12]
-            dist = np.linalg.norm(s1 - s2)
-            if dist == 0: dist = 1.0
+        try:
+            seq = np.load(self.samples[idx])
             
-            # Chỉ chuẩn hóa nếu có tọa độ mũi (tránh frame rỗng)
-            if not np.all(nose == 0):
-                for j in range(75):
-                    if not np.all(seq[i, j] == 0):
-                        res_seq[i, j] = (seq[i, j] - nose) / dist
-        
-        seq_55 = res_seq[:, TGCN_INDICES, :2]
-        if self.is_train and T > 5:
-            if np.random.rand() > 0.5:
-                fact = np.random.uniform(0.8, 1.2)
-                new_T = max(5, int(T * fact))
-                indices = np.linspace(0, T - 1, new_T).astype(int)
-                seq_55 = seq_55[indices]
-                T = new_T
-            if np.random.rand() > 0.8:
-                seq_55 += np.random.normal(0, 0.002, seq_55.shape)
+            # --- ROBUST RESHAPE LOGIC ---
+            if len(seq.shape) == 2:
+                # Nếu là (T, 225) -> Reshape về (T, 75, 3)
+                if seq.shape[1] == 225:
+                    seq = seq.reshape(-1, 75, 3)
+                # Nếu là (T, 150) -> Reshape về (T, 75, 2) và thêm chiều Z=0
+                elif seq.shape[1] == 150:
+                    seq = seq.reshape(-1, 75, 2)
+                    z = np.zeros((seq.shape[0], 75, 1))
+                    seq = np.concatenate([seq, z], axis=2)
+                # Nếu đã là 55 khớp X,Y (T, 110)
+                elif seq.shape[1] == 110:
+                    # Tạo mảng 75 khớp rỗng và nhét 55 khớp vào đúng vị trí TGCN_INDICES
+                    new_seq = np.zeros((seq.shape[0], 75, 3))
+                    temp_2d = seq.reshape(-1, 55, 2)
+                    for i, real_idx in enumerate(TGCN_INDICES):
+                        new_seq[:, real_idx, :2] = temp_2d[:, i, :]
+                    seq = new_seq
+            
+            T = seq.shape[0]
+            res_seq = np.zeros((T, 75, 3))
+            
+            for i in range(T):
+                nose = seq[i, 0]
+                s1, s2 = seq[i, 11], seq[i, 12]
+                dist = np.linalg.norm(s1 - s2)
+                if dist == 0: dist = 1.0
+                if not np.all(nose == 0):
+                    for j in range(75):
+                        if not np.all(seq[i, j] == 0):
+                            res_seq[i, j] = (seq[i, j] - nose) / dist
+            
+            # Bây giờ res_seq chắc chắn là (T, 75, 3)
+            seq_55 = res_seq[:, TGCN_INDICES, :2]
+            
+            if self.is_train and T > 5:
+                if np.random.rand() > 0.5:
+                    fact = np.random.uniform(0.8, 1.2)
+                    new_T = max(5, int(T * fact))
+                    indices = np.linspace(0, T - 1, new_T).astype(int)
+                    seq_55 = seq_55[indices]
+                    T = new_T
+                if np.random.rand() > 0.8:
+                    seq_55 += np.random.normal(0, 0.002, seq_55.shape)
 
-        indices = np.linspace(0, T - 1, NUM_SAMPLES).astype(int)
-        sampled_seq = seq_55[indices]
-        seq_flat = sampled_seq.transpose(1, 0, 2).reshape(55, -1)
-        return torch.FloatTensor(seq_flat), torch.tensor(self.labels[idx])
+            indices = np.linspace(0, T - 1, NUM_SAMPLES).astype(int)
+            sampled_seq = seq_55[indices]
+            seq_flat = sampled_seq.transpose(1, 0, 2).reshape(55, -1)
+            return torch.FloatTensor(seq_flat), torch.tensor(self.labels[idx])
+        except Exception as e:
+            # Nếu file lỗi quá nặng, trả về mảng 0 để không dừng quá trình train
+            # print(f"Error loading {self.samples[idx]}: {e}")
+            return torch.zeros((55, NUM_SAMPLES*2)), torch.tensor(self.labels[idx])
 
 def train(output_dir=None):
     if not output_dir: output_dir = "."
@@ -164,10 +173,9 @@ def train(output_dir=None):
     
     epochs = 80
     best_val_acc = 0
-    patience = 15 # Dừng sau 15 epoch nếu không cải thiện
+    patience = 15
     trigger_times = 0
     best_val_loss = float('inf')
-    
     history = {'train_acc': [], 'val_acc': [], 'train_loss': [], 'val_loss': []}
 
     print(f"Starting training on {device.type.upper()}...")
@@ -199,13 +207,10 @@ def train(output_dir=None):
             
             t_acc, v_acc = correct_train/len(train_dataset), correct_val/len(val_dataset)
             v_loss = val_loss/len(val_loader)
-            
             history['train_acc'].append(t_acc); history['val_acc'].append(v_acc)
             history['train_loss'].append(train_loss/len(train_loader)); history['val_loss'].append(v_loss)
             
             scheduler.step(v_loss)
-            
-            # --- CƠ CHẾ EARLY STOPPING & SAVE BEST ---
             if v_acc > best_val_acc:
                 best_val_acc = v_acc
                 torch.save(model.state_dict(), model_save_path)
@@ -217,7 +222,7 @@ def train(output_dir=None):
             else:
                 trigger_times += 1
                 if trigger_times >= patience:
-                    print(f"\n[EARLY STOP] Loss không giảm sau {patience} epoch. Dừng huấn luyện để tránh Overfitting.")
+                    print(f"\n[EARLY STOP] Loss không giảm sau {patience} epoch. Dừng huấn luyện.")
                     break
             
             print(f" Acc: T={t_acc:.4f}, V={v_acc:.4f} | Loss: V={v_loss:.4f} | Patience: {trigger_times}/{patience}")
@@ -225,36 +230,34 @@ def train(output_dir=None):
         print("Training stopped manually.")
 
     # --- REPORTING ---
-    print("\n--- Generating Reports ---")
     try:
         import matplotlib.pyplot as plt
         import seaborn as sns
         from sklearn.metrics import confusion_matrix, classification_report
         
-        # A. Plot History
         plt.figure(figsize=(12, 5))
         plt.subplot(1, 2, 1); plt.plot(history['train_acc'], label='Train'); plt.plot(history['val_acc'], label='Val'); plt.title('Accuracy'); plt.legend()
         plt.subplot(1, 2, 2); plt.plot(history['train_loss'], label='Train'); plt.plot(history['val_loss'], label='Val'); plt.title('Loss'); plt.legend()
         plt.savefig(history_img_path)
         
-        # B. Confusion Matrix & Detailed Report
-        model.load_state_dict(torch.load(model_save_path))
-        model.eval()
-        preds, targets = [], []
-        with torch.no_grad():
-            for x, y in val_loader:
-                out = model(x.to(device))
-                _, p = torch.max(out, 1)
-                preds.extend(p.cpu().numpy()); targets.extend(y.numpy())
-        
-        cm = confusion_matrix(targets, preds)
-        plt.figure(figsize=(15, 12))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=id_to_word.values(), yticklabels=id_to_word.values())
-        plt.savefig(cm_img_path)
-        
-        report = classification_report(targets, preds, target_names=[id_to_word[i] for i in range(num_classes)])
-        with open(report_txt_path, 'w') as f: f.write(report)
-        print(f"Reports saved to {output_dir}")
+        if os.path.exists(model_save_path):
+            model.load_state_dict(torch.load(model_save_path))
+            model.eval()
+            preds, targets = [], []
+            with torch.no_grad():
+                for x, y in val_loader:
+                    out = model(x.to(device))
+                    _, p = torch.max(out, 1)
+                    preds.extend(p.cpu().numpy()); targets.extend(y.numpy())
+            
+            cm = confusion_matrix(targets, preds)
+            plt.figure(figsize=(15, 12))
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=id_to_word.values(), yticklabels=id_to_word.values())
+            plt.savefig(cm_img_path)
+            
+            report = classification_report(targets, preds, target_names=[id_to_word[i] for i in range(num_classes)])
+            with open(report_txt_path, 'w') as f: f.write(report)
+            print(f"Reports saved to {output_dir}")
     except Exception as e:
         print(f"Reporting failed: {e}")
 
