@@ -1,54 +1,50 @@
-# Báo cáo Phân tích Dữ liệu Nhận diện - Chiến lược 30 Lớp Cân Bằng (Lumina v2)
+# Báo cáo Phân tích Dữ liệu - Bộ 30 Từ vựng Giao tiếp Thiết yếu (Lumina v3)
 
-Bản báo cáo này cập nhật chiến lược tối ưu hóa model bằng cách chọn ra **30 từ vựng tốt nhất** và áp dụng kỹ thuật **Cân bằng tuyệt đối (Perfect Balance)** để đạt độ chính xác cao nhất.
+Chiến lược này tập trung vào việc xây dựng một bộ từ vựng thực dụng, cho phép ghép thành các câu giao tiếp hoàn chỉnh (ví dụ: "Tôi muốn ăn cơm", "Bạn đi đâu thế?",...).
 
-## 📊 Danh sách 30 từ vựng mục tiêu (Top 30 Balanced)
+## 📋 Danh sách 30 từ "Vàng" và Kế hoạch bổ sung Data
 
-| STT | Từ vựng (Gloss) | Mẫu thực tế | Ngưỡng Train | Đánh giá |
+Mục tiêu: Đạt **100 mẫu/từ** để có độ chính xác cao nhất.
+
+| Nhóm | Từ vựng | Hiện tại | Cần thêm | Độ ưu tiên |
 | :--- | :--- | :--- | :--- | :--- |
-| 1 | NIGHT | 212 | **104** | 🏆 Top 1 |
-| 2 | READ | 186 | **104** | 🏆 Top 2 |
-| 3 | FINISH | 184 | **104** | 🏆 Top 3 |
-| 4 | FRIEND | 179 | **104** | 🏆 |
-| 5 | WATER | 173 | **104** | 🏆 |
-| 6 | WHERE | 173 | **104** | 🏆 |
-| 7 | MANY | 167 | **104** | 🏆 |
-| 8 | WRITE | 165 | **104** | 🏆 |
-| 9 | START | 142 | **104** | ⭐⭐⭐⭐⭐ |
-| 10 | YOU | 141 | **104** | ⭐⭐⭐⭐⭐ |
-| 11 | LIKE | 139 | **104** | ⭐⭐⭐⭐⭐ |
-| 12 | CLEAN | 136 | **104** | ⭐⭐⭐⭐⭐ |
-| 13 | SLEEP | 132 | **104** | ⭐⭐⭐⭐⭐ |
-| 14 | NOW | 128 | **104** | ⭐⭐⭐⭐⭐ |
-| 15 | YES | 128 | **104** | ⭐⭐⭐⭐⭐ |
-| 16 | COOK | 127 | **104** | ⭐⭐⭐⭐⭐ |
-| 17 | FAMILY | 126 | **104** | ⭐⭐⭐⭐⭐ |
-| 18 | MOTHER | 121 | **104** | ⭐⭐⭐⭐⭐ |
-| 19 | BAD | 114 | **104** | ⭐⭐⭐⭐ |
-| 20 | SORRY | 111 | **104** | ⭐⭐⭐⭐ |
-| 21 | EAT1 | 111 | **104** | ⭐⭐⭐⭐ |
-| 22 | TIME | 111 | **104** | ⭐⭐⭐⭐ |
-| 23 | BUSY | 108 | **104** | ⭐⭐⭐⭐ |
-| 24 | FAST | 108 | **104** | ⭐⭐⭐⭐ |
-| 25 | NO | 107 | **104** | ⭐⭐⭐⭐ |
-| 26 | FATHER | 105 | **104** | ⭐⭐⭐⭐ |
-| 27 | LATE | 104 | **104** | ⭐⭐⭐⭐ |
-| 28 | TIRED | 104 | **104** | ⭐⭐⭐⭐ |
-| 29 | GOOD | 104 | **104** | ⭐⭐⭐⭐ |
-| 30 | LATER | 104 | **104** | ⭐⭐⭐⭐ |
+| **Giao tiếp** | **THANKYOU** | 31 | **+69** | 🔥 Rất cao |
+| **Đại từ** | **ME** | 58 | **+42** | 🔥 Rất cao |
+| **Hành động** | **COME** | 58 | **+42** | 🔥 Rất cao |
+| **Câu hỏi** | **WHY** | 69 | **+31** | ⭐⭐⭐ |
+| **Giao tiếp** | **HELLO** | 72 | **+28** | ⭐⭐⭐ |
+| **Nhu cầu** | **NEED** | 75 | **+25** | ⭐⭐⭐ |
+| **Câu hỏi** | **WHO** | 76 | **+24** | ⭐⭐⭐ |
+| **Câu hỏi** | **WHAT1** | 78 | **+22** | ⭐⭐⭐ |
+| **Nhu cầu** | **WANT1** | 78 | **+22** | ⭐⭐⭐ |
+| **Hành động** | **GO** | 78 | **+22** | ⭐⭐⭐ |
+| **Hành động** | **HELP** | 78 | **+22** | ⭐⭐⭐ |
+| **Cảm xúc** | **HAPPY** | 79 | **+21** | ⭐⭐⭐ |
+| **Đại từ** | **WE** | 82 | **+18** | ⭐⭐ |
+| **Nhu cầu** | **DRINK1** | 82 | **+18** | ⭐⭐ |
+| **Phản hồi** | **GOOD** | 83 | **+17** | ⭐⭐ |
+| **Đối tượng** | **FATHER** | 84 | **+16** | ⭐⭐ |
+| **Phản hồi** | **NO** | 86 | **+14** | ⭐ |
+| **Hành động** | **EAT1** | 89 | **+11** | ⭐ |
+| **Thời gian** | **TIME** | 89 | **+11** | ⭐ |
+| **Giao tiếp** | **SORRY** | 89 | **+11** | ⭐ |
+| **Phản hồi** | **BAD** | 91 | **+9** | ⭐ |
+| **Đối tượng** | **MOTHER** | 97 | **+3** | ✅ Đạt |
+| **Trạng thái** | **YES** | 102 | **0** | ✅ Đạt |
+| **Thời gian** | **NOW** | 102 | **0** | ✅ Đạt |
+| **Nhu cầu** | **SLEEP** | 106 | **0** | ✅ Đạt |
+| **Cảm xúc** | **LIKE** | 111 | **0** | ✅ Đạt |
+| **Đại từ** | **YOU** | 113 | **0** | ✅ Đạt |
+| **Câu hỏi** | **WHERE** | 138 | **0** | ✅ Đạt |
+| **Đối tượng** | **FRIEND** | 143 | **0** | ✅ Đạt |
+| **Trạng thái** | **FINISH** | 147 | **0** | ✅ Đạt |
 
 ---
 
-## 🛠️ Chiến lược Tối ưu hóa:
-
-1.  **Lọc dữ liệu:** Chỉ chọn 30 từ có số lượng mẫu lớn nhất để đảm bảo model có đủ "vốn" để học.
-2.  **Cân bằng tuyệt đối (Undersampling):** Mặc dù từ `NIGHT` có 212 mẫu, nhưng script sẽ chỉ lấy **104** mẫu (bằng với từ ít nhất trong top 30 là `LATER`). Điều này triệt tiêu hoàn toàn lỗi dự đoán lệch (Bias) sang các lớp có nhiều dữ liệu.
-3.  **Cấu hình Model:** Sử dụng `HIDDEN_SIZE = 128` để tăng khả năng phân tách giữa các ký hiệu có nét tương đồng trong 30 lớp.
-
-## 📈 Nhận xét tổng quan:
-*   **Tổng số từ vựng:** 30 (Tinh gọn từ bộ 52).
-*   **Độ cân bằng:** 100% (Tất cả các lớp đều có đúng 104 mẫu khi train).
-*   **Mục tiêu:** Đạt Val Accuracy > 90% cho các tác vụ thời gian thực.
+## 💡 Lời khuyên cho việc quay video bổ sung:
+1.  **Đa dạng hóa:** Quay ở các góc độ khác nhau, khoảng cách khác nhau (gần/xa camera) và ánh sáng khác nhau.
+2.  **Độ dài:** Mỗi video nên kéo dài tầm 1-2 giây cho một lần thực hiện ký hiệu.
+3.  **Hậu xử lý:** Sau khi quay, bạn cho vào thư mục `videos/`, chạy script trích xuất MediaPipe để tạo file `.npy`, sau đó cập nhật file `train.csv` là model sẽ tự động mạnh lên.
 
 ---
-*Báo cáo cập nhật ngày 16/05/2026 sau khi áp dụng thuật toán Tự động Cân bằng (Auto-Balance).*
+*Báo cáo cập nhật ngày 16/05/2026. Chốt danh sách Essential 30 cho ứng dụng Lumina Sign.*

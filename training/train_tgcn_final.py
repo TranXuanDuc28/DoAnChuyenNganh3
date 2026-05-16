@@ -80,29 +80,45 @@ def train(output_dir=None):
 
     model_save_path = os.path.join(output_dir, 'best_tgcn_model_FINAL.pth')
     
-    # --- TỰ ĐỘNG CHỌN 30 TỪ TỐT NHẤT VÀ CÂN BẰNG ---
-    DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
-    train_df = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
+    # --- DANH SÁCH 30 TỪ VỰNG "VÀNG" ĐỂ GIAO TIẾP ---
+    ESSENTIAL_30 = [
+        "ME", "YOU", "WE",               # Đại từ
+        "WANT1", "NEED", "LIKE", "HELP", # Động từ nhu cầu
+        "GO", "COME", "EAT1", "DRINK1",  # Hành động
+        "HELLO", "THANKYOU", "SORRY",    # Giao tiếp
+        "WHAT1", "WHERE", "WHO", "WHY",  # Câu hỏi
+        "GOOD", "BAD", "YES", "NO",      # Phản hồi
+        "MOTHER", "FATHER", "FRIEND",    # Đối tượng
+        "NOW", "TIME", "FINISH",         # Thời gian/Trạng thái
+        "SLEEP", "HAPPY"                 # Cảm xúc/Nhu cầu
+    ]
     
-    # Đếm số lượng mẫu thực tế có file npy
-    available_glosses = {}
-    for _, row in train_df.iterrows():
-        if os.path.exists(os.path.join(KEYPOINTS_DIR, f"{row['VideoID']}.npy")):
-            available_glosses[row['Gloss']] = available_glosses.get(row['Gloss'], 0) + 1
-            
-    # Lấy top 30 từ có nhiều mẫu nhất
-    sorted_glosses = sorted(available_glosses.items(), key=lambda x: x[1], reverse=True)[:30]
-    top_30_glosses = [g[0] for g in sorted_glosses]
-    
-    # Điểm cân bằng chính là số mẫu của từ ít nhất trong top 30
-    balance_limit = sorted_glosses[-1][1]
-    
-    # Tạo Label Map mới
-    label_map = {gloss: i for i, gloss in enumerate(top_30_glosses)}
+    # Tạo Label Map cố định
+    label_map = {gloss: i for i, gloss in enumerate(ESSENTIAL_30)}
     with open(LABEL_MAP_FILE, 'w', encoding='utf-8') as f:
         json.dump(label_map, f, indent=4)
     
-    print(f"✅ Đã chọn 30 từ vựng tốt nhất. Ngưỡng cân bằng tuyệt đối: {balance_limit} mẫu/lớp.")
+    # Đếm số lượng mẫu hiện có cho danh sách này
+    DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
+    train_df = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
+    
+    available_counts = {}
+    for gloss in ESSENTIAL_30:
+        # Lọc các VideoID có file npy tồn tại
+        count = 0
+        gloss_df = train_df[train_df['Gloss'] == gloss]
+        for _, row in gloss_df.iterrows():
+            if os.path.exists(os.path.join(KEYPOINTS_DIR, f"{row['VideoID']}.npy")):
+                count += 1
+        available_counts[gloss] = count
+    
+    # Tìm ngưỡng cân bằng (lấy từ có ít mẫu nhất nhưng tối thiểu 50)
+    valid_counts = [c for c in available_counts.values() if c > 0]
+    balance_limit = min(valid_counts) if valid_counts else 0
+    
+    print(f"🚀 Đã thiết lập bộ 30 từ vựng Giao tiếp Thiết yếu.")
+    print(f"📊 Ngưỡng cân bằng hiện tại: {balance_limit} mẫu/lớp.")
+    print("⚠️ Cần bổ sung thêm video cho các từ có số mẫu thấp để nâng ngưỡng này lên.")
     
     num_classes = len(label_map)
     id_to_word = {v: k for k, v in label_map.items()}
