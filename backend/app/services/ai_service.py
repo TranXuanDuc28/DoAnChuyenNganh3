@@ -34,38 +34,51 @@ class AIService:
         
         # Params
         self.num_samples = 30
-        self.num_classes = 25
-        self.hidden_size = 64
+        self.num_classes = 52  # Giữ nguyên 52 lớp
+        self.hidden_size = 64 # Lùi về 64 để khớp với model 3.4MB
         self.num_stages = 20
         
         self.load_model()
         self.load_labels()
 
     def load_labels(self):
-        label_path = os.path.join(BACKEND_DIR, "data", "label_map.json")
+        # Ưu tiên dùng file label_map mới nếu có
+        label_path = os.path.join(BACKEND_DIR, "..", "training", "final_label_map.json")
+        if not os.path.exists(label_path):
+            label_path = os.path.join(BACKEND_DIR, "data", "label_map.json")
+            
         try:
-            with open(label_path, 'r') as f:
+            with open(label_path, 'r', encoding='utf-8') as f:
                 label_map = json.load(f)
-            self.id_to_word = {idx: word.upper() for word, idx in label_map.items()}
+            # Chuyển label_map sang id_to_word
+            self.id_to_word = {int(idx): word.upper() for word, idx in label_map.items()}
         except Exception as e:
             print(f"Error loading label map: {e}")
 
     def load_model(self):
-        weights_path = os.path.join(BACKEND_DIR, "weights", "best_tgcn_model.pth")
+        # Ưu tiên load model FINAL nếu có
+        weights_path = os.path.join(BACKEND_DIR, "..", "training", "best_tgcn_model_FINAL.pth")
+        if not os.path.exists(weights_path):
+            weights_path = os.path.join(BACKEND_DIR, "weights", "best_tgcn_model.pth")
+            
         try:
             self.model = GCN_muti_att(
                 input_feature=self.num_samples*2, 
                 hidden_feature=self.hidden_size, 
                 num_class=self.num_classes, 
-                p_dropout=0.3, 
+                p_dropout=0.5, 
                 num_stage=self.num_stages
             )
+            # LUÔN ĐƯA VỀ EVAL TRƯỚC để tránh lỗi BatchNorm nếu load weights thất bại
+            self.model.to(self.device).eval()
+            
             if os.path.exists(weights_path):
                 self.model.load_state_dict(torch.load(weights_path, map_location=self.device))
-                print(f"AI Model loaded from {weights_path} on {self.device}")
-            self.model.to(self.device).eval()
+                print(f"✅ AI Model loaded from {weights_path} on {self.device}")
+            else:
+                print(f"⚠️ Warning: Weights not found at {weights_path}. Running with random weights.")
         except Exception as e:
-            print(f"Failed to load TGCN model: {e}")
+            print(f"❌ Failed to load TGCN model: {e}")
 
     async def translate_gloss(self, gloss_list: List[str], target_lang: str = 'vi') -> str:
         if not gloss_list: return ""

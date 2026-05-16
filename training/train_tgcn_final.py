@@ -27,7 +27,7 @@ LABEL_MAP_FILE = os.path.join(FINAL_DIR, 'final_label_map.json')
 
 NUM_SAMPLES = 30  
 NUM_CLASSES = 52  # Nâng cấp lên 52 classes theo bộ dữ liệu cân bằng
-HIDDEN_SIZE = 128
+HIDDEN_SIZE = 64
 NUM_STAGES = 20
 
 # 55 Điểm ảnh Xương (Pose + Hand) theo chuẩn MediaPipe

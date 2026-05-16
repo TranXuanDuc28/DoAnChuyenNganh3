@@ -51,8 +51,8 @@ async def websocket_recognition(websocket: WebSocket, db: Session = Depends(get_
     is_translating = False
     
     # --- Tham số ổn định ---
-    MIN_CONFIDENCE = 0.90
-    STABILITY_FRAMES = 5
+    MIN_CONFIDENCE = 0.80 # Đưa về mức cao vì đã có model chuẩn
+    STABILITY_FRAMES = 5  # Tăng lên để tránh nhảy chữ lung tung
     COOLDOWN_PERIOD = 15
     cooldown_counter = 0
 
@@ -93,7 +93,7 @@ async def websocket_recognition(websocket: WebSocket, db: Session = Depends(get_
                 window = buffer.get_window()
                 movement = compute_hand_movement(window)
                 
-                if movement < 0.006: # Tăng lên để lờ đi các rung động nhỏ (ổn định hơn)
+                if movement < 0.006: 
                     current_prediction = "IDLE"
                     last_added_word = ""
                     confidence = 0.0
@@ -105,7 +105,10 @@ async def websocket_recognition(websocket: WebSocket, db: Session = Depends(get_
                     pred_word, conf = ai_service.predict(window, prediction_history)
                     confidence = conf
                     
-                    # LOGIC CHỐT TỪ (Đồng bộ từ main_realtime)
+                    # LOG DEBUG: In ra để xem model đang nghĩ gì
+                    print(f"🔮 Dự đoán: {pred_word} | Conf: {conf:.4f} | Movement: {movement:.4f}")
+                    
+                    # LOGIC CHỐT TỪ
                     if cooldown_counter > 0:
                         cooldown_counter -= 1
                     elif confidence > MIN_CONFIDENCE: 
