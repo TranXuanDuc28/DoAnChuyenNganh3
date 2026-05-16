@@ -155,9 +155,22 @@ def train(output_dir=None):
     
     print(f"✅ Đã lưu Label Map vào: {label_map_save_path}")
     
+    # 0. Chẩn đoán đường dẫn (Rất quan trọng cho Colab)
+    print(f"🔍 Working Directory: {os.getcwd()}")
+    print(f"🔍 Keypoints Path: {KEYPOINTS_DIR}")
+    if os.path.exists(KEYPOINTS_DIR):
+        files = [f for f in os.listdir(KEYPOINTS_DIR) if f.endswith('.npy')]
+        print(f"📂 Tìm thấy {len(files)} file .npy trong thư mục keypoints.")
+    else:
+        print(f"❌ KHÔNG tìm thấy thư mục: {KEYPOINTS_DIR}")
+
     # Đếm số lượng mẫu hiện có cho danh sách này
     DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
-    train_df = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
+    csv_path = os.path.join(DATA_DIR, 'train.csv')
+    if not os.path.exists(csv_path):
+        print(f"❌ KHÔNG tìm thấy file CSV: {csv_path}")
+        return
+    train_df = pd.read_csv(csv_path)
     
     available_counts = {}
     for gloss in ESSENTIAL_30:
@@ -180,41 +193,32 @@ def train(output_dir=None):
     num_classes = len(label_map)
     id_to_word = {v: k for k, v in label_map.items()}
 
-    # 0. Kiểm tra thư mục dữ liệu (Debug cho Colab)
-    print(f"🔍 Thư mục làm việc: {os.getcwd()}")
-    print(f"🔍 FINAL_DIR: {FINAL_DIR}")
-    print(f"🔍 KEYPOINTS_DIR: {KEYPOINTS_DIR}")
-    if os.path.exists(KEYPOINTS_DIR):
-        num_files = len([f for f in os.listdir(KEYPOINTS_DIR) if f.endswith('.npy')])
-        print(f"📂 Số file .npy tìm thấy trong keypoints/: {num_files}")
-    else:
-        print(f"❌ Lỗi: Thư mục {KEYPOINTS_DIR} không tồn tại!")
-        
-    DATA_DIR = os.path.join(FINAL_DIR, '..', 'backend', 'data')
-    csv_path = os.path.join(DATA_DIR, 'train.csv')
-    if os.path.exists(csv_path):
-        train_df = pd.read_csv(csv_path)
-        print(f"📊 Đã nạp {csv_path}. Tổng số dòng: {len(train_df)}")
-    else:
-        print(f"❌ Lỗi: Không thấy file {csv_path}")
-        return
+    # 1. Setup Data
+    print("\n--- Báo cáo Dữ liệu ---")
+    train_dataset = TGCN_Final_Dataset('train.csv', label_map, is_train=True, max_samples=balance_limit)
+    val_dataset = TGCN_Final_Dataset('valid.csv', label_map, is_train=False)
+    
+    # Thống kê phân phối lớp thực tế
+    class_counts = {}
+    for label_idx in train_dataset.labels:
         word = id_to_word[label_idx]
         class_counts[word] = class_counts.get(word, 0) + 1
     
-    print(f"{'Gloss':<15} | {'Samples':<8}")
-    print("-" * 26)
+    print(f"{'Gloss':<15} | {'Samples (Train)':<15}")
+    print("-" * 35)
     for word in sorted(class_counts.keys()):
-        print(f"{word:<15} | {class_counts[word]:<8}")
+        print(f"{word:<15} | {class_counts[word]:<15}")
     
     total_samples = len(train_dataset) + len(val_dataset)
-    print("-" * 26)
+    print("-" * 35)
     print(f"Tổng số lớp (Classes): {num_classes}")
     print(f"Tổng số mẫu (Samples): {total_samples}")
     print(f"Training: {len(train_dataset)} | Val: {len(val_dataset)}")
     print("------------------------\n")
 
     if total_samples == 0:
-        print("Lỗi: Không nạp được mẫu nào. Kiểm tra thư mục keypoints/ hoặc file CSV.")
+        print("❌ Lỗi: Không nạp được mẫu nào. Kiểm tra thư mục keypoints/ hoặc file CSV.")
+        print(f"Gợi ý: Kiểm tra xem các file .npy có nằm trong {KEYPOINTS_DIR} không?")
         return
         
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
