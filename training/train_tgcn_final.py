@@ -260,7 +260,7 @@ def train(output_dir=None):
     # 3. Training
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     # Thêm Scheduler để giảm LR khi Val Loss không giảm
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
     criterion = nn.CrossEntropyLoss()
     epochs = 100
     history = {
