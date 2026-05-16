@@ -30,7 +30,10 @@ NUM_CLASSES = 30  # Chốt 30 từ để đạt độ chính xác cao nhất
 HIDDEN_SIZE = 128 # Tăng lại lên 128 để gánh 30 lớp tốt hơn
 NUM_STAGES = 20
 
-# ... (giữ nguyên BODY_INDICES, HAND_INDICES, TGCN_INDICES)
+# Khớp nối (Indices)
+BODY_INDICES = [0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24]
+HAND_INDICES = list(range(33, 75)) # 21 LH + 21 RH
+TGCN_INDICES = BODY_INDICES + HAND_INDICES # Tổng cộng 13 + 42 = 55 khớp
 
 class TGCN_Final_Dataset(Dataset):
     def __init__(self, csv_file, label_map, is_train=True, max_samples=None):
