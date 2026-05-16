@@ -138,21 +138,25 @@ def train(output_dir=None):
     cm_img_path = os.path.join(output_dir, 'confusion_matrix.png')
     report_txt_path = os.path.join(output_dir, 'classification_report.txt')
     
-    # --- DANH SÁCH 30 TỪ VỰNG "VÀNG" ĐỂ GIAO TIẾP ---
-    ESSENTIAL_30 = [
-        "ME", "YOU", "WE",               # Đại từ
+    # --- DANH SÁCH 45 TỪ VỰNG "VÀNG" ĐỂ GIAO TIẾP & SINH TỒN ---
+    ESSENTIAL_VOCAB = [
+        "ME", "YOU", "WE", "WHO",        # Đại từ
         "WANT1", "NEED", "LIKE", "HELP", # Động từ nhu cầu
         "GO", "COME", "EAT1", "DRINK1",  # Hành động
         "HELLO", "THANKYOU", "SORRY",    # Giao tiếp
-        "WHAT1", "WHERE", "WHO", "WHY",  # Câu hỏi
+        "WHAT1", "WHERE", "WHY",         # Câu hỏi
         "GOOD", "BAD", "YES", "NO",      # Phản hồi
         "MOTHER", "FATHER", "FRIEND",    # Đối tượng
         "NOW", "TIME", "FINISH",         # Thời gian/Trạng thái
-        "SLEEP", "HAPPY"                 # Cảm xúc/Nhu cầu
+        "SLEEP", "HAPPY",                # Cảm xúc/Nhu cầu
+        # 15 từ mới bổ sung (Sinh tồn)
+        "SICK", "HURT", "HOSPITAL", "TOILET", "PLEASE", 
+        "AGAIN", "UNDERSTAND", "DONT_UNDERSTAND", "WAIT", "HOME", 
+        "SCARED", "MONEY", "WORK", "NAME", "POLICE"
     ]
     
     # Tạo Label Map cố định và LƯU VÀO ĐÚNG THƯ MỤC OUTPUT
-    label_map = {gloss: i for i, gloss in enumerate(ESSENTIAL_30)}
+    label_map = {gloss: i for i, gloss in enumerate(ESSENTIAL_VOCAB)}
     with open(label_map_save_path, 'w', encoding='utf-8') as f:
         json.dump(label_map, f, indent=4)
     
@@ -176,7 +180,7 @@ def train(output_dir=None):
     train_df = pd.read_csv(csv_path)
     
     available_counts = {}
-    for gloss in ESSENTIAL_30:
+    for gloss in ESSENTIAL_VOCAB:
         count = 0
         gloss_df = train_df[train_df['Gloss'] == gloss]
         for _, row in gloss_df.iterrows():
@@ -184,20 +188,20 @@ def train(output_dir=None):
                 count += 1
         available_counts[gloss] = count
     
-    # --- CHẾ ĐỘ 30 TỪ VỰNG THIẾT YẾU ---
-    QUALIFIED_WORDS = ESSENTIAL_30 
+    # --- CHẾ ĐỘ 45 TỪ VỰNG THIẾT YẾU & SINH TỒN ---
+    QUALIFIED_WORDS = ESSENTIAL_VOCAB 
     TARGET_SAMPLES = 100 # Mục tiêu lý tưởng
     
-    # Tạo lại Label Map với đầy đủ 30 từ
+    # Tạo lại Label Map với đầy đủ 45 từ
     label_map = {gloss: i for i, gloss in enumerate(QUALIFIED_WORDS)}
     with open(label_map_save_path, 'w', encoding='utf-8') as f:
         json.dump(label_map, f, indent=4)
         
-    # Tính ngưỡng cân bằng thực tế (min của tất cả 30 từ)
+    # Tính ngưỡng cân bằng thực tế (min của tất cả 45 từ)
     valid_counts = [available_counts[w] for w in QUALIFIED_WORDS]
     balance_limit = min(valid_counts) if valid_counts else 0
     
-    print(f"🚀 Đã kích hoạt bộ 30 từ vựng Giao tiếp Thiết yếu.")
+    print(f"🚀 Đã kích hoạt bộ 45 từ vựng Giao tiếp & Sinh tồn.")
     print(f"📊 Ngưỡng cân bằng hiện tại: {balance_limit} mẫu/lớp (do từ thấp nhất quyết định).")
     
     print("\n📝 DANH SÁCH CẦN QUAY THÊM VIDEO (Mục tiêu 100 mẫu/lớp):")

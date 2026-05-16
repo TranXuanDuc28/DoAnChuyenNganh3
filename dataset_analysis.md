@@ -1,50 +1,42 @@
-# Báo cáo Phân tích Dữ liệu - Bộ 30 Từ vựng Giao tiếp Thiết yếu (Lumina v3)
+# Phân tích Dữ liệu & Kế hoạch Bổ sung (Lumina Sign)
 
-Chiến lược này tập trung vào việc xây dựng một bộ từ vựng thực dụng, cho phép ghép thành các câu giao tiếp hoàn chỉnh (ví dụ: "Tôi muốn ăn cơm", "Bạn đi đâu thế?",...).
+Dưới đây là danh sách **45 từ vựng Giao tiếp & Sinh tồn** dành cho người khiếm thính. Mục tiêu: **100 mẫu/lớp**.
 
-## 📋 Danh sách 30 từ "Vàng" và Kế hoạch bổ sung Data
+## 📊 Kế hoạch Quay Video (Mục tiêu: 100 mẫu/lớp)
 
-Mục tiêu: Đạt **100 mẫu/từ** để có độ chính xác cao nhất.
-
-| Nhóm | Từ vựng | Hiện tại | Cần thêm | Độ ưu tiên |
-| :--- | :--- | :--- | :--- | :--- |
-| **Giao tiếp** | **THANKYOU** | 31 | **+69** | 🔥 Rất cao |
-| **Đại từ** | **ME** | 58 | **+42** | 🔥 Rất cao |
-| **Hành động** | **COME** | 58 | **+42** | 🔥 Rất cao |
-| **Câu hỏi** | **WHY** | 69 | **+31** | ⭐⭐⭐ |
-| **Giao tiếp** | **HELLO** | 72 | **+28** | ⭐⭐⭐ |
-| **Nhu cầu** | **NEED** | 75 | **+25** | ⭐⭐⭐ |
-| **Câu hỏi** | **WHO** | 76 | **+24** | ⭐⭐⭐ |
-| **Câu hỏi** | **WHAT1** | 78 | **+22** | ⭐⭐⭐ |
-| **Nhu cầu** | **WANT1** | 78 | **+22** | ⭐⭐⭐ |
-| **Hành động** | **GO** | 78 | **+22** | ⭐⭐⭐ |
-| **Hành động** | **HELP** | 78 | **+22** | ⭐⭐⭐ |
-| **Cảm xúc** | **HAPPY** | 79 | **+21** | ⭐⭐⭐ |
-| **Đại từ** | **WE** | 82 | **+18** | ⭐⭐ |
-| **Nhu cầu** | **DRINK1** | 82 | **+18** | ⭐⭐ |
-| **Phản hồi** | **GOOD** | 83 | **+17** | ⭐⭐ |
-| **Đối tượng** | **FATHER** | 84 | **+16** | ⭐⭐ |
-| **Phản hồi** | **NO** | 86 | **+14** | ⭐ |
-| **Hành động** | **EAT1** | 89 | **+11** | ⭐ |
-| **Thời gian** | **TIME** | 89 | **+11** | ⭐ |
-| **Giao tiếp** | **SORRY** | 89 | **+11** | ⭐ |
-| **Phản hồi** | **BAD** | 91 | **+9** | ⭐ |
-| **Đối tượng** | **MOTHER** | 97 | **+3** | ✅ Đạt |
-| **Trạng thái** | **YES** | 102 | **0** | ✅ Đạt |
-| **Thời gian** | **NOW** | 102 | **0** | ✅ Đạt |
-| **Nhu cầu** | **SLEEP** | 106 | **0** | ✅ Đạt |
-| **Cảm xúc** | **LIKE** | 111 | **0** | ✅ Đạt |
-| **Đại từ** | **YOU** | 113 | **0** | ✅ Đạt |
-| **Câu hỏi** | **WHERE** | 138 | **0** | ✅ Đạt |
-| **Đối tượng** | **FRIEND** | 143 | **0** | ✅ Đạt |
-| **Trạng thái** | **FINISH** | 147 | **0** | ✅ Đạt |
+| Nhóm | Gloss (Từ vựng) | Hiện có | Cần thêm | Trạng thái | Tầm quan trọng |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Nhóm: Đã đạt (>= 90)** | | | | | |
+| Trạng thái | **FINISH, FRIEND, WHERE, YOU, LIKE, SLEEP, NOW, YES, MOTHER, BAD** | ~100 | 0 | ✅ Đạt | Cơ bản |
+| **Nhóm: Cần thêm (30 - 90)** | | | | | |
+| Nhu cầu | **WANT1, NEED, DRINK1, EAT1, TIME, SORRY, GOOD, NO, FATHER, HAPPY, HELLO, WHY, WHAT1, WHO, WE, GO, COME, ME, HELP, THANKYOU** | 30-80 | 20-70 | ⚠️ Thiếu | Trung bình |
+| **Nhóm MỚI: Sinh tồn (0 mẫu)** | | | | | |
+| Y tế | **SICK** (Ốm) | 0 | 100 | 🚨 MỚI | Rất cao |
+| Y tế | **HURT** (Đau) | 0 | 100 | 🚨 MỚI | Rất cao |
+| Địa điểm | **HOSPITAL** (Bệnh viện) | 0 | 100 | 🚨 MỚI | Cao |
+| Nhu cầu | **TOILET** (Nhà vệ sinh) | 0 | 100 | 🚨 MỚI | Cực cao |
+| Giao tiếp | **PLEASE** (Làm ơn) | 0 | 100 | 🚨 MỚI | Cao |
+| Giao tiếp | **AGAIN** (Lặp lại) | 0 | 100 | 🚨 MỚI | Cao |
+| Giao tiếp | **UNDERSTAND** (Hiểu) | 0 | 100 | 🚨 MỚI | Trung bình |
+| Giao tiếp | **DON'T UNDERSTAND** | 0 | 100 | 🚨 MỚI | Trung bình |
+| Hành động | **WAIT** (Đợi) | 0 | 100 | 🚨 MỚI | Trung bình |
+| Địa điểm | **HOME** (Nhà) | 0 | 100 | 🚨 MỚI | Trung bình |
+| Cảm xúc | **SCARED** (Sợ hãi) | 0 | 100 | 🚨 MỚI | Cao |
+| Xã hội | **MONEY** (Tiền) | 0 | 100 | 🚨 MỚI | Trung bình |
+| Xã hội | **WORK** (Làm việc) | 0 | 100 | 🚨 MỚI | Trung bình |
+| Xã hội | **NAME** (Tên) | 0 | 100 | 🚨 MỚI | Trung bình |
+| An toàn | **POLICE** (Cảnh sát) | 0 | 100 | 🚨 MỚI | Cao |
 
 ---
 
-## 💡 Lời khuyên cho việc quay video bổ sung:
-1.  **Đa dạng hóa:** Quay ở các góc độ khác nhau, khoảng cách khác nhau (gần/xa camera) và ánh sáng khác nhau.
-2.  **Độ dài:** Mỗi video nên kéo dài tầm 1-2 giây cho một lần thực hiện ký hiệu.
-3.  **Hậu xử lý:** Sau khi quay, bạn cho vào thư mục `videos/`, chạy script trích xuất MediaPipe để tạo file `.npy`, sau đó cập nhật file `train.csv` là model sẽ tự động mạnh lên.
+## 💬 Ví dụ các câu "Sinh tồn" mới ghép được:
+1.  **ME + SICK + NEED + HOSPITAL** -> "Tôi bị ốm, tôi cần đi bệnh viện."
+2.  **TOILET + WHERE? + PLEASE** -> "Làm ơn cho hỏi nhà vệ sinh ở đâu?"
+3.  **ME + HURT + HELP + ME** -> "Tôi bị đau, hãy giúp tôi với."
+4.  **AGAIN + PLEASE + DON'T UNDERSTAND** -> "Làm ơn nhắc lại được không, tôi không hiểu."
+5.  **POLICE + WHERE? + SCARED** -> "Tôi đang sợ hãi, cảnh sát ở đâu thế?"
 
 ---
-*Báo cáo cập nhật ngày 16/05/2026. Chốt danh sách Essential 30 cho ứng dụng Lumina Sign.*
+
+## 💡 Mẹo quay phim:
+*   Hãy quay Nhóm **Sinh tồn** này trước vì chúng có giá trị thực tế rất lớn cho đồ án của bạn!
